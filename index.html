@@ -100,63 +100,110 @@ var HCOATS = {
   pezzato_nero: { body: '#ECE9E3', shade: '#B9B4AA', leg: '#E8E5DF', legDark: '#D9D5CD', mane: '#DCD8D0', patch: '#161415' },
   pezzato_sauro: { body: '#EFEAE2', shade: '#BDB3A6', leg: '#3A2A20', legDark: '#2A1E18', mane: '#8E3416', patch: '#9A4E22' }
 };
-var PHOTOS = { pezzato_nero: 'img/pezzato-nero.jpg', pezzato_sauro: 'img/pezzato-sauro.jpg', baio_scuro: 'img/baio-scuro.jpg' };
-function photoOf(h) { if (h.coat === 'sauro') return h.blaze ? 'img/sauro-lista.jpg' : 'img/sauro.jpg'; return PHOTOS[h.coat] || ''; }
-function portrait(h, w, ht, svgSize) {
-  var ph = photoOf(h);
-  if (ph) return '<img src="' + ph + '" alt="' + esc(h.name || 'Cavallo') + '" style="width:' + w + ';height:' + ht + ';object-fit:cover;object-position:center 18%;display:block;border-radius:8px">';
-  return horseSVG({ coat: h.coat, blaze: h.blaze, size: svgSize, frame: -1 });
-}
-var POSES = [
-  { nf: [106, 68, 124, 86, 138, 94], ff: [100, 68, 116, 88, 126, 100], nh: [46, 66, 30, 86, 16, 94], fh: [52, 66, 40, 88, 28, 100], bob: 0 },
-  { nf: [106, 68, 116, 88, 120, 102], ff: [100, 68, 104, 88, 100, 102], nh: [46, 66, 42, 88, 36, 102], fh: [52, 66, 56, 88, 54, 102], bob: -2 },
-  { nf: [106, 68, 108, 86, 98, 96], ff: [100, 68, 96, 86, 88, 98], nh: [46, 66, 60, 86, 70, 96], fh: [52, 66, 66, 84, 78, 92], bob: -4 },
-  { nf: [106, 68, 116, 88, 120, 102], ff: [100, 68, 104, 88, 100, 102], nh: [46, 66, 42, 88, 36, 102], fh: [52, 66, 56, 88, 54, 102], bob: -2 }
-];
-var STAND = { nf: [106, 68, 107, 88, 107, 104], ff: [100, 68, 100, 88, 100, 104], nh: [44, 66, 41, 88, 44, 104], fh: [52, 66, 54, 88, 57, 104], bob: 0 };
-var TAIL_RUN = 'M30 44 C18 44 8 50 2 60 C10 58 16 56 22 54 C14 60 10 66 8 72 C18 64 24 58 30 52 Z';
-var TAIL_STAND = 'M30 44 C22 48 20 60 22 76 C24 86 26 92 28 96 C30 86 30 76 31 66 C32 58 33 52 32 46 Z';
-function legSVG(a, upper, lower, wUp, hoof) {
-  return '<line x1="' + a[0] + '" y1="' + a[1] + '" x2="' + a[2] + '" y2="' + a[3] + '" stroke="' + upper + '" stroke-width="' + wUp + '" stroke-linecap="round"/>' +
-    '<line x1="' + a[2] + '" y1="' + a[3] + '" x2="' + a[4] + '" y2="' + a[5] + '" stroke="' + lower + '" stroke-width="5" stroke-linecap="round"/>' +
-    '<circle cx="' + a[4] + '" cy="' + a[5] + '" r="3.5" fill="' + hoof + '"/>';
-}
-function horseSVG(o) {
-  var size = o.size || 320, frame = o.frame == null ? -1 : o.frame;
-  var p = frame < 0 ? STAND : POSES[((frame % 4) + 4) % 4];
-  var c = HCOATS[o.coat] || HCOATS.baio;
-  var h = Math.round(size * 110 / 160);
-  var s = '<svg width="' + size + '" height="' + h + '" viewBox="0 0 160 110" aria-hidden="true" style="display:block;overflow:visible">';
-  s += '<ellipse cx="84" cy="106" rx="' + (frame < 0 ? 52 : 46 + p.bob) + '" ry="3.5" fill="#000" opacity="0.25"/>';
-  s += '<g transform="translate(0 ' + p.bob + ')">';
-  s += legSVG(p.fh, c.shade, c.legDark, 10, '#141414') + legSVG(p.ff, c.shade, c.legDark, 8, '#141414');
-  s += '<path d="' + (frame < 0 ? TAIL_STAND : TAIL_RUN) + '" fill="' + c.mane + '"/>';
-  s += '<path d="M28 52 C26 42 34 36 48 36 L92 38 C100 30 110 18 122 12 C128 8 134 8 138 12 L156 30 C159 34 156 39 151 39 L140 36 C134 34 128 32 124 34 C120 42 116 50 114 58 C112 68 104 74 94 74 L52 74 C40 74 30 66 28 52 Z" fill="' + c.body + '"/>';
-  if (c.patch) s += '<path d="M100 38 C106 28 114 18 122 12 C128 8 134 8 138 12 L156 30 C159 34 156 39 151 39 L140 36 C134 34 128 32 124 34 C120 42 116 48 112 52 C108 46 104 42 100 38 Z" fill="' + c.patch + '"/><path d="M28 52 C26 42 34 36 48 36 L62 37 C65 48 60 60 52 72 C40 72 31 64 28 52 Z" fill="' + c.patch + '"/><ellipse cx="80" cy="60" rx="10" ry="7" fill="' + c.patch + '"/>';
-  s += '<path d="M54 72 C68 75 84 75 96 71" stroke="' + c.shade + '" stroke-width="4" fill="none" opacity="0.7" stroke-linecap="round"/>';
-  s += '<path d="M40 40 C58 36 78 37 92 40" stroke="#fff" stroke-width="3" fill="none" opacity="0.16" stroke-linecap="round"/>';
-  s += '<path d="M96 44 C104 52 105 63 99 72" stroke="' + c.shade + '" stroke-width="1.6" fill="none" opacity="0.8"/>';
-  s += '<path d="M40 44 C52 42 58 53 54 69" stroke="' + c.shade + '" stroke-width="1.6" fill="none" opacity="0.8"/>';
-  s += '<path d="M112 24 C118 26 126 30 128 33" stroke="' + c.shade + '" stroke-width="1.2" fill="none" opacity="0.6"/>';
-  s += '<path d="M128 11 L129 3 L133 10 Z" fill="' + c.shade + '"/><path d="M131 10 L134 1 L138 10 Z" fill="' + c.body + '"/>';
-  s += '<path d="M98 37 C106 27 114 17 124 10 L130 13 C120 20 112 30 105 40 Z" fill="' + c.mane + '"/>';
-  if (o.blaze) s += '<path d="M138 13 L152 31 L149 33 L136 17 Z" fill="#F4F1EA"/>';
-  s += '<circle cx="140.5" cy="17.5" r="2" fill="#0B0B0B"/><circle cx="141.2" cy="16.8" r="0.6" fill="#fff"/><circle cx="152.5" cy="34" r="1.2" fill="#0B0B0B" opacity="0.8"/>';
-  s += '<path d="M135 13 L149 34 M144 30 L155 31.5 M135 13 C132 18 128 24 126 30" stroke="#2B1D14" stroke-width="1.4" fill="none" stroke-linecap="round"/>';
-  s += legSVG(p.nh, c.body, c.leg, 10, '#1A1A1A') + legSVG(p.nf, c.body, c.leg, 8, '#1A1A1A');
-  if (o.jockey) {
-    s += '<rect x="60" y="36" width="30" height="20" rx="2" fill="#F4F1E8" stroke="#2A2A2A" stroke-width="0.6"/>';
-    s += '<text x="75" y="51" text-anchor="middle" font-size="12" font-weight="600" font-family="IBM Plex Sans, sans-serif" fill="#1A1A1A">' + esc(o.num || '') + '</text>';
-    s += '<path d="M66 37 L90 37" stroke="#3A2A1E" stroke-width="2.5"/>';
-    s += '<path d="M82 33 L96 42 L92 49 L80 40 Z" fill="#F4F1EA" stroke="#C9C4B8" stroke-width="0.5"/><path d="M91 42 L98 43 L95 53 L88 51 Z" fill="#151515"/>';
-    s += '<path d="M70 32 C74 21 89 15 102 19 L107 25 C97 27 86 32 78 39 Z" fill="' + o.silk + '"/>';
-    s += '<path d="M72 30 C80 26 92 22 104 22" stroke="#000" stroke-width="1" opacity="0.18" fill="none"/>';
-    s += '<path d="M98 21 L114 27 L116 31 L100 27 Z" fill="' + o.silk + '"/><circle cx="117" cy="30" r="2.6" fill="#E3C2A0"/>';
-    s += '<path d="M117 30 L149 34" stroke="#3A2A1E" stroke-width="1.2"/>';
-    s += '<circle cx="107" cy="15" r="6.5" fill="' + o.cap + '"/><path d="M111 14 L118 15.5 L111 18 Z" fill="' + o.cap + '"/>';
-    s += '<path d="M102 12 C105 9 109 9 112 11" stroke="#fff" stroke-width="1" opacity="0.35" fill="none"/>';
+var F = 5000, CAMH = 2.4, HZ = 150, CX = 620, LANE_M = 1.35, CAM_AHEAD = 40, CAM_LAT = 0;
+var SPR = {
+  lista: { src: 'img/cut/sauro-lista.webp', ar: 0.658 },
+  sauro: { src: 'img/cut/sauro.webp', ar: 0.613 },
+  scuro: { src: 'img/cut/baio-scuro.webp', ar: 0.685 },
+  pnero: { src: 'img/cut/pezzato-nero.webp', ar: 0.748 },
+  pneroB: { src: 'img/cut/pezzato-nero-busto.webp', ar: 1.131 }
+};
+function look(h) {
+  var base = h.blaze ? SPR.lista : SPR.sauro;
+  switch (h.coat) {
+    case 'sauro': return { s: base, f: 'none', leg: '#7A3E18', photo: h.blaze ? 'img/sauro-lista.jpg' : 'img/sauro.jpg' };
+    case 'baio': return { s: base, f: 'brightness(.62) saturate(1.15) contrast(1.1)', leg: '#1E1612' };
+    case 'baio_scuro': return { s: SPR.scuro, f: 'none', leg: '#1E1612', photo: 'img/baio-scuro.jpg' };
+    case 'morello': return { s: SPR.scuro, f: 'brightness(.5) saturate(.4) contrast(1.15)', leg: '#121011' };
+    case 'grigio': return { s: base, f: 'grayscale(1) brightness(1.35) contrast(.95)', leg: '#77726B' };
+    case 'palomino': return { s: base, f: 'sepia(.35) saturate(.9) brightness(1.25) hue-rotate(8deg)', leg: '#B98B48' };
+    case 'pezzato_nero': return { s: SPR.pneroB, full: SPR.pnero, f: 'none', leg: '#E8E5DF', photo: 'img/pezzato-nero.jpg' };
+    case 'pezzato_sauro': return { s: SPR.lista, f: 'saturate(1.1)', photo: 'img/pezzato-sauro.jpg', leg: '#2A1E18' };
   }
-  return s + '</g></svg>';
+  return { s: base, f: 'none', leg: '#1E1612' };
+}
+function portrait(h, w, ht) {
+  var L = look(h), alt = esc(h.name || 'Cavallo');
+  var box = 'width:' + w + ';height:' + ht + ';border-radius:8px;overflow:hidden;position:relative;flex:none;';
+  if (L.photo) return '<div style="' + box + '"><img src="' + L.photo + '" alt="' + alt + '" style="width:100%;height:100%;object-fit:cover;object-position:center 18%;display:block"></div>';
+  var sp = L.full || L.s;
+  return '<div style="' + box + 'background:linear-gradient(#9FC0D6,#DCE8EE 52%,#577F49 52%,#6E9A5A 60%,#3F6B33);display:flex;align-items:flex-end;justify-content:center">' +
+    '<img src="' + sp.src + '" alt="' + alt + '" style="height:' + (L.full ? '90%;margin-bottom:4%' : '100%') + ';max-width:100%;object-fit:contain;filter:' + L.f + ';display:block"></div>';
+}
+function prj(lat, hgt, d) { return [CX + F * (lat - CAM_LAT) / d, HZ + F * (CAMH - hgt) / d]; }
+function pt(a) { return a[0].toFixed(1) + ' ' + a[1].toFixed(1); }
+function quad(lat1, lat2, h1, h2, d1, d2) {
+  return 'M' + pt(prj(lat1, h1, d1)) + ' L' + pt(prj(lat2, h2, d1)) + ' L' + pt(prj(lat2, h2, d2)) + ' L' + pt(prj(lat1, h1, d2)) + ' Z ';
+}
+function side(lat, h1, h2, d1, d2) {
+  return 'M' + pt(prj(lat, h1, d1)) + ' L' + pt(prj(lat, h2, d1)) + ' L' + pt(prj(lat, h2, d2)) + ' L' + pt(prj(lat, h1, d2)) + ' Z ';
+}
+function staticBG() {
+  var s = '<defs><pattern id="crowd" width="9" height="8" patternUnits="userSpaceOnUse"><rect width="9" height="8" fill="#6E6A63"/><circle cx="2" cy="2" r="1.8" fill="#E3D2AE"/><circle cx="6.5" cy="5.5" r="1.8" fill="#9A3B32"/><circle cx="6" cy="1.5" r="1.3" fill="#3D5C8A"/></pattern></defs>';
+  s += '<path d="M0 150 L0 128 C120 112 230 118 340 126 C450 134 520 110 640 116 C760 122 860 136 980 124 C1080 114 1170 120 1240 130 L1240 150 Z" fill="#9DB79A"/>';
+  s += '<path d="M380 150 C400 132 430 130 450 140 C470 126 500 128 520 142 L700 142 C720 128 750 126 770 138 C800 124 840 130 860 150 Z" fill="#4F7A47"/>';
+  s += '<rect x="0" y="150" width="1240" height="370" fill="#6E9A5A"/>';
+  s += '<path d="' + quad(-5.6, 5.6, 0, 0, 28, 3000) + '" fill="#3E7B36"/>';
+  s += '<path d="' + side(-9, 0, 1.2, 28, 700) + '" fill="#E9E3D4"/>';
+  s += '<path d="' + side(-9, 1.2, 7, 28, 700) + '" fill="url(#crowd)"/>';
+  s += '<path d="' + side(-9, 7, 7.6, 28, 700) + '" fill="#2E363E"/>';
+  s += '<path d="' + side(-9.6, 7.6, 9, 28, 700) + '" fill="#3C4650"/>';
+  s += '<path d="' + side(9, 0, 3.2, 28, 900) + '" fill="#36673A"/>';
+  s += '<path d="' + side(10, 3.2, 5, 28, 900) + '" fill="#2F5A33"/>';
+  [-5.6, 5.6].forEach(function (lat) {
+    var a = prj(lat, 1, 28), b = prj(lat, 1, 3000);
+    s += '<line x1="' + a[0] + '" y1="' + a[1] + '" x2="' + b[0] + '" y2="' + b[1] + '" stroke="#FAFAF6" stroke-width="6"/>';
+  });
+  return s;
+}
+function sceneSVG(race, cam) {
+  var s = staticBG();
+  var bands = '';
+  var p0 = Math.floor((cam - 28) / 10) * 10;
+  for (var p = p0; p > cam - 700; p -= 10) {
+    if (((p / 10) % 2 + 2) % 2 === 0) bands += quad(-5.6, 5.6, 0, 0, Math.max(28, cam - p), cam - p + 10);
+  }
+  s += '<path d="' + bands + '" fill="rgba(255,255,255,0.07)"/>';
+  var near = '', far = '';
+  for (var q = Math.floor((cam - 28) / 5) * 5; q > cam - 450; q -= 5) {
+    var d = cam - q;
+    [-5.6, 5.6].forEach(function (lat) {
+      var a = prj(lat, 0, d), b = prj(lat, 1, d);
+      var seg = 'M' + pt(a) + ' L' + pt(b) + ' ';
+      if (d < 90) near += seg; else far += seg;
+    });
+  }
+  s += '<path d="' + near + '" stroke="#F4F4F0" stroke-width="4"/><path d="' + far + '" stroke="#F4F4F0" stroke-width="1.5"/>';
+  for (var m = Math.floor((cam - 30) / 100) * 100; m > cam - 700; m -= 100) {
+    if (m <= 0 || m >= race.dist) continue;
+    var dd = cam - m; if (dd > 320) continue;
+    var a1 = prj(-6.2, 0, dd), a2 = prj(-6.2, 2.4, dd), fs = Math.max(9, F * 0.45 / dd);
+    s += '<line x1="' + a1[0] + '" y1="' + a1[1] + '" x2="' + a2[0] + '" y2="' + a2[1] + '" stroke="#C8452F" stroke-width="' + Math.max(1.5, F * 0.09 / dd) + '"/>';
+    s += '<rect x="' + (a2[0] - fs * 1.4) + '" y="' + (a2[1] - fs * 1.2) + '" width="' + fs * 2.8 + '" height="' + fs * 1.3 + '" fill="#FAFAF6" stroke="#333" stroke-width="0.6"/>';
+    s += '<text x="' + a2[0] + '" y="' + (a2[1] - fs * 0.22) + '" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="' + fs + '" fill="#1C1C1C">' + (race.dist - m) + '</text>';
+  }
+  [[race.dist, true], [0, false]].forEach(function (L) {
+    var dl = cam - L[0];
+    if (dl < 28 || dl > 1500) return;
+    s += '<path d="' + quad(-5.6, 5.6, 0, 0, dl, dl + 0.6) + '" fill="#FAFAF6"/>';
+    if (L[1]) {
+      var b1 = prj(-6.4, 0, dl), b2 = prj(-6.4, 3.4, dl), r = F * 0.45 / dl;
+      s += '<line x1="' + b1[0] + '" y1="' + b1[1] + '" x2="' + b2[0] + '" y2="' + b2[1] + '" stroke="#FAFAF6" stroke-width="' + Math.max(2, F * 0.12 / dl) + '"/>';
+      s += '<circle cx="' + b2[0] + '" cy="' + b2[1] + '" r="' + r + '" fill="#C8452F" stroke="#FAFAF6" stroke-width="' + r * 0.18 + '"/>';
+    }
+  });
+  return s;
+}
+function jockeySVG(w, h, silk, cap) {
+  return '<svg class="abs" width="' + w + '" height="' + h + '" viewBox="0 0 100 100" preserveAspectRatio="none" style="left:0;top:0;overflow:visible" aria-hidden="true">' +
+    '<path d="M22 66 C22 44 34 34 50 34 C66 34 78 44 78 66 L78 84 L22 84 Z" fill="' + silk + '"/>' +
+    '<path d="M22 50 C34 44 66 44 78 50" stroke="#000" stroke-opacity="0.18" stroke-width="2.5" fill="none"/>' +
+    '<path d="M20 70 C18 80 22 92 28 96 L33 91 C29 85 28 77 29 70 Z M80 70 C82 80 78 92 72 96 L67 91 C71 85 72 77 71 70 Z" fill="' + silk + '"/>' +
+    '<circle cx="30" cy="95" r="3.5" fill="#F2F0E8"/><circle cx="70" cy="95" r="3.5" fill="#F2F0E8"/>' +
+    '<rect x="44" y="22" width="12" height="10" fill="#E3C2A0"/>' +
+    '<ellipse cx="50" cy="13" rx="13" ry="12" fill="' + cap + '"/><path d="M37 16 L63 16 L62 21 L38 21 Z" fill="#1A1A1A"/>' +
+    '<rect x="39.5" y="16.5" width="9" height="4" rx="1.5" fill="#9FC3D6"/><rect x="51.5" y="16.5" width="9" height="4" rx="1.5" fill="#9FC3D6"/>' +
+    '<path d="M42 6 C46 3 54 3 58 6" stroke="#fff" stroke-opacity="0.35" stroke-width="1.5" fill="none"/></svg>';
 }
 
 /* ---------- Carriera ---------- */
@@ -637,29 +684,14 @@ var ICONS = {
   zolletta: '<svg width="34" height="34" viewBox="0 0 34 34"><path d="M6 12 L17 6 L28 12 L28 24 L17 30 L6 24 Z" fill="#FBFBF7" stroke="#A9A9A2" stroke-width="1.2"/><path d="M6 12 L17 18 L28 12 M17 18 V30" fill="none" stroke="#C9C9C2" stroke-width="1.2"/></svg>',
   ferro: '<svg width="34" height="34" viewBox="0 0 34 34"><path d="M8 28 V15 a9 9 0 0 1 18 0 V28 H22 V15 a5 5 0 0 0 -10 0 V28 Z" fill="#E2B93B" stroke="#8C6A12" stroke-width="1.2"/><circle cx="10" cy="20" r="1" fill="#8C6A12"/><circle cx="24" cy="20" r="1" fill="#8C6A12"/><circle cx="17" cy="9" r="1" fill="#8C6A12"/></svg>'
 };
-var HILLS = '<svg width="1240" height="90" viewBox="0 0 1240 90"><path d="M0 70 C120 30 220 40 330 55 C430 68 520 20 660 30 C790 40 860 66 980 50 C1080 36 1160 40 1240 70 V90 H0Z" fill="#9DB79A"/><path d="M0 80 C160 60 260 72 420 66 C560 60 640 48 800 62 C940 74 1080 58 1240 80 V90 H0Z" fill="#7F9F7A"/></svg>';
-var STAND_HTML = '<div class="abs" style="left:0;top:0;width:600px;height:16px;background:#3C4650;clip-path:polygon(3% 0,97% 0,100% 100%,0 100%)"></div>' +
-  '<div class="abs" style="left:0;top:16px;width:600px;height:84px;background-color:#6E6A63;background-image:radial-gradient(circle,#E3D2AE 0 2px,transparent 2.6px),radial-gradient(circle,#9A3B32 0 2px,transparent 2.6px),radial-gradient(circle,#3D5C8A 0 1.8px,transparent 2.4px),repeating-linear-gradient(90deg,transparent 0 96px,#4A4741 96px 100px);background-size:9px 8px,14px 11px,11px 13px,100px 84px;background-position:0 0,5px 3px,2px 6px,0 0"></div>' +
-  '<div class="abs" style="left:0;top:100px;width:600px;height:20px;background:#E9E3D4;border-top:2px solid #CFC6B2"></div>' +
-  '<div class="abs" style="left:630px;top:40px;width:70px;height:86px;border-radius:50% 50% 40% 40%;background:#2F5A33"></div>' +
-  '<div class="abs" style="left:690px;top:26px;width:90px;height:100px;border-radius:50% 50% 40% 40%;background:#36673A"></div>' +
-  '<div class="abs" style="left:662px;top:100px;width:6px;height:26px;background:#4B3524"></div><div class="abs" style="left:732px;top:100px;width:6px;height:26px;background:#4B3524"></div>';
-
 function raceHTML() {
   var paces = ['Risparmia', 'Galoppo', 'Sprint'].map(function (l, i) { return '<button class="pace" id="pace' + i + '" data-act="pace" data-arg="' + i + '">' + l + '<small>tasto ' + (i + 1) + '</small></button>'; }).join('');
   return '<div style="display:flex;flex-direction:column;gap:12px">' +
-    '<div id="view" style="position:relative;width:1240px;height:520px;overflow:hidden;border-radius:12px;background:#BCD5E6">' +
-    '<div class="abs" style="left:0;top:0;width:1240px;height:150px;background:linear-gradient(#9EC1DB,#D7E6EE)"></div>' +
-    '<div class="abs" id="hills" style="left:0;top:70px;width:2480px;display:flex">' + HILLS + HILLS + '</div>' +
-    '<div class="abs" id="stands" style="left:0;top:96px;width:2400px;height:132px">' +
-    [0, 1, 2].map(function (i) { return '<div class="abs" style="left:' + (i * 800) + 'px;top:0;width:800px;height:132px">' + STAND_HTML + '</div>'; }).join('') + '</div>' +
-    '<div class="abs" style="left:0;top:214px;width:1240px;height:16px;background:#5C8E4E"></div>' +
-    '<div class="abs" id="turf" style="left:0;top:226px;width:1240px;height:294px;background-color:#3E7B36;background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.06) 0 120px,rgba(0,0,0,.04) 120px 240px)"></div>' +
-    '<div class="abs" id="rail" style="left:0;top:214px;width:1240px;height:18px;background-image:repeating-linear-gradient(90deg,#F4F4F0 0 4px,transparent 4px 40px)"></div>' +
-    '<div class="abs" style="left:0;top:210px;width:1240px;height:5px;background:#FAFAF6;box-shadow:0 1px 0 #9AA39A"></div>' +
+    '<div id="view" style="position:relative;width:1240px;height:520px;overflow:hidden;border-radius:12px;background:#6E9A5A">' +
+    '<div class="abs" style="left:0;top:0;width:1240px;height:150px;background:linear-gradient(#8DB4D2,#D9E7EE)"></div>' +
+    '<svg class="abs" id="scene" width="1240" height="520" viewBox="0 0 1240 520" style="left:0;top:0" aria-hidden="true"></svg>' +
     '<div class="abs" id="layer" style="left:0;top:0;width:1240px;height:520px"></div>' +
-    '<div class="abs" id="railNear" style="left:0;top:498px;width:1240px;height:22px;background-image:repeating-linear-gradient(90deg,#F4F4F0 0 5px,transparent 5px 48px)"></div>' +
-    '<div class="abs" style="left:0;top:494px;width:1240px;height:7px;background:#FAFAF6;box-shadow:0 2px 0 #8E978E"></div>' +
+    '<div class="abs" id="radar" style="top:10px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:12px;background:rgba(15,42,33,.82)"></div>' +
     '<div class="abs" id="overlay" style="inset:0;pointer-events:none"></div>' +
     '<div class="abs" id="results" style="inset:0;display:none"></div></div>' +
     '<div style="height:168px;display:grid;grid-template-columns:220px minmax(0,1fr) 300px;gap:14px">' +
@@ -679,52 +711,47 @@ function raceHTML() {
 
 function updateRace() {
   var race = S.race; if (!race || S.screen !== 'race') return;
-  var me = race.racers[0], cam = me.pos, px = cam * PX;
-  document.getElementById('turf').style.backgroundPosition = (-(px % 240)) + 'px 0';
-  document.getElementById('rail').style.backgroundPosition = (-(px % 40)) + 'px 0';
-  document.getElementById('railNear').style.backgroundPosition = (-((px * 1.15) % 48)) + 'px 0';
-  document.getElementById('hills').style.transform = 'translateX(' + (-((px * 0.12) % 1240)) + 'px)';
-  document.getElementById('stands').style.transform = 'translateX(' + (-((px * 0.35) % 800)) + 'px)';
-  var html = '';
-  var m0 = Math.floor((cam - 60) / 100) * 100;
-  for (var m = m0; m <= cam + 80; m += 100) {
-    if (m > 0 && m < race.dist) {
-      html += '<div class="abs" style="left:' + (NOSE_X + (m - cam) * PX - 20) + 'px;top:150px;width:40px;height:64px;display:flex;flex-direction:column;align-items:center">' +
-        '<div class="mono" style="padding:2px 6px;background:#FAFAF6;color:#1C1C1C;font-size:12px;border:1px solid #333">' + (race.dist - m) + '</div>' +
-        '<div style="width:4px;flex:1;background:repeating-linear-gradient(#C8452F 0 8px,#FAFAF6 8px 16px)"></div></div>';
-    }
-  }
-  var sx = NOSE_X + (0 - cam) * PX - 10;
-  if (sx > -80 && sx < 1260) {
-    html += '<div class="abs" style="left:' + sx + 'px;top:226px;width:70px;height:290px;display:flex;flex-direction:column">';
-    for (var g = 0; g < 6; g++) html += '<div style="height:44px;border:3px solid #E8E8E2;border-right-width:6px;background:rgba(40,48,58,.35)"></div>';
+  var me = race.racers[0], cam = me.pos + CAM_AHEAD;
+  CAM_LAT += ((me.lane - 2.5) * LANE_M * 0.7 - CAM_LAT) * 0.15;
+  document.getElementById('scene').innerHTML = sceneSVG(race, cam);
+  var racing = race.count <= 0, html = '', tu = '';
+  race.racers.slice().sort(function (a, b) { return a.pos - b.pos; }).forEach(function (r) {
+    var d = cam - r.pos;
+    if (d < 24) return;
+    var L = look(r), sp = L.s;
+    var hs = F * 1.75 / d, w = hs * sp.ar;
+    var lat = (r.lane - 2.5) * LANE_M;
+    var cx = CX + F * (lat - CAM_LAT) / d, ground = HZ + F * CAMH / d, bottom = HZ + F * (CAMH - 0.75) / d;
+    var ph = r.phase * Math.PI * 2;
+    var bob = racing && r.speed > 1 ? Math.sin(ph) * F * 0.06 / d : 0;
+    var rot = racing && r.speed > 1 ? Math.sin(ph + 1) * 1.3 : 0;
+    var top = bottom - hs + bob;
+    var op = Math.min(1, (d - 24) / 10);
+    html += '<div class="abs" style="left:0;top:0;opacity:' + op.toFixed(2) + '">';
+    var jw = Math.max(w * 0.9, hs * 0.55), jh = hs * 0.42;
+    html += '<div class="abs" style="left:' + (cx - jw / 2) + 'px;top:' + (top - hs * 0.09 + bob * 0.3) + 'px;width:' + jw + 'px;height:' + jh + 'px">' + jockeySVG(jw, jh, r.silk, r.cap) + '</div>';
+    var lw = Math.max(3, F * 0.15 / d), lift = racing && r.speed > 1 ? F * 0.4 / d : 0;
+    var lh1 = (ground - bottom) - Math.max(0, Math.sin(ph)) * lift, lh2 = (ground - bottom) - Math.max(0, -Math.sin(ph)) * lift;
+    [[-0.13, lh1], [0.11, lh2]].forEach(function (lg) {
+      html += '<div class="abs" style="left:' + (cx + w * lg[0] - lw / 2) + 'px;top:' + (bottom - hs * 0.12) + 'px;width:' + lw + 'px;height:' + (lg[1] + hs * 0.12) + 'px;background:' + L.leg + ';border-radius:' + (lw / 2) + 'px ' + (lw / 2) + 'px ' + (lw / 3) + 'px ' + (lw / 3) + 'px;box-shadow:inset ' + (-lw * 0.25) + 'px 0 0 rgba(0,0,0,.25)"></div>';
+      html += '<div class="abs" style="left:' + (cx + w * lg[0] - lw * 0.6) + 'px;top:' + (bottom + lg[1] - lw * 0.5) + 'px;width:' + (lw * 1.2) + 'px;height:' + (lw * 0.6) + 'px;background:#1A1A1A;border-radius:' + (lw * 0.2) + 'px"></div>';
+    });
+    html += '<img class="abs" src="' + sp.src + '" alt="" style="left:' + (cx - w / 2) + 'px;top:' + top + 'px;width:' + w + 'px;height:' + hs + 'px;filter:' + L.f + ';transform:rotate(' + rot.toFixed(2) + 'deg);transform-origin:50% 100%;-webkit-mask-image:linear-gradient(#000 80%,transparent 99%);mask-image:linear-gradient(#000 80%,transparent 99%)">';
+    var dw = F * 1.7 / d, dh = F * 0.95 / d;
+    html += '<div class="abs" style="left:' + (cx - dw / 2) + 'px;top:' + (ground - dh * 0.72) + 'px;width:' + dw + 'px;height:' + dh + 'px;border-radius:50%;background:radial-gradient(closest-side,rgba(118,104,76,' + (racing ? 0.92 : 0.45) + '),rgba(120,104,74,0))"></div>';
+    if (r.isPlayer) tu = '<div class="abs" style="left:' + (cx - 18) + 'px;top:' + (top - hs * 0.1 - 30) + 'px;display:flex;flex-direction:column;align-items:center;width:36px"><div style="padding:1px 6px;border-radius:4px;background:#D4AF37;color:#1C1606;font-size:11px;font-weight:600">TU</div><svg width="12" height="7" viewBox="0 0 12 7"><path d="M0 0h12L6 7z" fill="#D4AF37"/></svg></div>';
     html += '</div>';
-  }
-  var fx = NOSE_X + (race.dist - cam) * PX;
-  if (fx > -60 && fx < 1300) {
-    html += '<div class="abs" style="left:' + fx + 'px;top:226px;width:4px;height:294px;background:#FAFAF6"></div>' +
-      '<div class="abs" style="left:' + (fx - 28) + 'px;top:120px;width:60px;height:100px;display:flex;flex-direction:column;align-items:center">' +
-      '<div style="width:46px;height:46px;border-radius:23px;background:#C8452F;border:4px solid #FAFAF6;display:flex;align-items:center;justify-content:center;color:#FAFAF6;font-size:9px;font-weight:600">ARRIVO</div>' +
-      '<div style="width:6px;flex:1;background:#FAFAF6"></div></div>';
-  }
-  race.items.forEach(function (it) {
-    if (it.taken) return;
-    var x = NOSE_X + (it.m - cam) * PX - 17;
-    if (x > -40 && x < 1260) html += '<div class="abs" style="left:' + x + 'px;top:' + (262 + it.lane * 44 - 30) + 'px;filter:drop-shadow(0 3px 2px rgba(0,0,0,.35))">' + ICONS[it.kind] + '</div>';
   });
-  var racing = race.count <= 0;
-  race.racers.slice().sort(function (a, b) { return a.lane - b.lane; }).forEach(function (r) {
-    var size = Math.round(122 + r.lane * 11);
-    var hh = size * 110 / 160;
-    var x = Math.round(NOSE_X + (r.pos - cam) * PX - size * 0.97);
-    if (x < -size || x > 1260) return;
-    var y = Math.round(266 + r.lane * 44 - hh * 0.96);
-    var frame = racing && r.speed > 1 ? Math.floor(r.phase * 4) % 4 : -1;
-    html += '<div class="abs" style="left:' + x + 'px;top:' + y + 'px;width:' + size + 'px">';
-    if (r.isPlayer) html += '<div class="abs" style="left:' + Math.round(size * 0.6) + 'px;top:-22px;display:flex;flex-direction:column;align-items:center"><div style="padding:1px 6px;border-radius:4px;background:#D4AF37;color:#1C1606;font-size:11px;font-weight:600">TU</div><svg width="12" height="7" viewBox="0 0 12 7"><path d="M0 0h12L6 7z" fill="#D4AF37"/></svg></div>';
-    html += horseSVG({ coat: r.coat, blaze: r.blaze, silk: r.silk, cap: r.cap, num: r.num, frame: frame, size: size, jockey: true }) + '</div>';
-  });
-  document.getElementById('layer').innerHTML = html;
+  document.getElementById('layer').innerHTML = html + tu;
+  var rad = '<span style="font-size:12px;color:#B9C4B5;margin-right:4px">Davanti a te</span>';
+  for (var ln = 0; ln < 6; ln++) {
+    var nx = null;
+    race.items.forEach(function (it) { if (!it.taken && it.lane === ln && it.m > me.pos && it.m < me.pos + 160 && (!nx || it.m < nx.m)) nx = it; });
+    var mine = me.lane === ln;
+    rad += '<div style="width:62px;height:52px;border-radius:8px;border:2px solid ' + (mine ? '#D4AF37' : '#2F6A50') + ';background:' + (mine ? 'rgba(212,175,55,.18)' : 'rgba(0,0,0,.15)') + ';display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px">' +
+      (nx ? '<div style="transform:scale(.7);height:26px;margin-top:-4px">' + ICONS[nx.kind] + '</div><div class="mono">' + Math.ceil(nx.m - me.pos) + ' m</div>' : '<div class="muted">corsia ' + (ln + 1) + '</div>') + '</div>';
+  }
+  document.getElementById('radar').innerHTML = rad;
 
   var ov = '';
   if (!race.done && race.t < race.toastUntil) ov += '<div class="abs" style="top:16px;left:50%;transform:translateX(-50%);padding:8px 18px;border-radius:999px;background:rgba(15,42,33,.92);font-size:16px;font-weight:600;border:1px solid #D4AF37">' + race.toast + '</div>';
