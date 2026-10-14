@@ -1,0 +1,811 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gran Galoppo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+:root{--bg:#0F2A21;--panel:#163A2D;--line:#24523F;--line2:#2F6A50;--btn:#1C4535;--text:#F3EEDF;--muted:#B9C4B5;--gold:#D4AF37;--warn:#F0B4A6;--ok:#86C98A;--note:#E9D9A6}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',system-ui,sans-serif}
+body{display:flex;justify-content:center;align-items:flex-start;min-height:100vh}
+#wrap{width:1280px;height:840px;transform-origin:top center}
+#app{width:1280px;height:840px;padding:20px;display:flex;flex-direction:column;gap:16px;overflow:hidden}
+button{font-family:inherit;color:var(--text);cursor:pointer}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.serif{font-family:'DM Serif Display',Georgia,serif;font-weight:400}
+.mono{font-family:'IBM Plex Mono',monospace}
+.muted{color:var(--muted)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px}
+.cap{font-size:11px;letter-spacing:.1em;color:var(--muted)}
+.gold{color:var(--gold)}
+.primary{border:0;border-radius:8px;background:var(--gold);color:#1C1606;font-weight:600}
+.sel{border:1px solid var(--line);background:var(--panel);border-radius:10px;text-align:left}
+.sel.on{border-color:var(--gold);background:var(--line)}
+.dark.sel{background:var(--bg)}
+.dark.sel.on{background:var(--line)}
+.bar{height:8px;border-radius:4px;background:var(--bg);overflow:hidden}
+.bar>div{height:100%}
+.top{height:64px;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:0 20px}
+.tab{min-height:44px;padding:0 18px;border-radius:8px;border:1px solid var(--line);background:transparent;font-size:15px;font-weight:600}
+.tab.on{background:var(--gold);border-color:var(--gold);color:#1C1606}
+.act{min-height:64px;padding:10px 14px;border-radius:10px;border:1px solid var(--line2);background:var(--btn);text-align:left;display:flex;flex-direction:column;gap:3px}
+.horsebox{border-radius:10px;background:#2C5A3F;display:flex;align-items:flex-end;justify-content:center;overflow:hidden}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th{padding:8px 6px;font-weight:500;color:var(--muted);font-size:12px;letter-spacing:.08em;text-align:left}
+td{padding:12px 6px;border-top:1px solid var(--line)}
+.sw{display:inline-block;width:18px;height:18px;border-radius:4px;border-width:3px;border-style:solid;vertical-align:middle}
+.abs{position:absolute}
+.pace{flex:1;min-height:48px;border-radius:8px;border:1px solid var(--line2);background:var(--btn);font-size:15px;font-weight:600;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.pace.on{background:var(--gold);border-color:var(--gold);color:#1C1606}
+.pace small{font-size:11px;font-weight:500;opacity:.8}
+.lanebtn{width:52px;min-height:48px;border-radius:8px;border:1px solid var(--line2);background:var(--btn);display:flex;align-items:center;justify-content:center}
+.scroll{overflow-y:auto;min-height:0}
+</style>
+</head>
+<body>
+<div id="wrap"><div id="app"></div></div>
+<script>
+'use strict';
+var KEY = 'gran-galoppo-v1';
+var PX = 10, NOSE_X = 560, DT = 0.15;
+var LEVELS = [
+  { id: 1, name: 'Maiden Esordienti', track: 'Ippodromo del Mulino', dist: 1000, fee: 100, prize: 1500, rating: 36 },
+  { id: 2, name: 'Handicap Provinciale', track: 'Ippodromo di Valverde', dist: 1200, fee: 300, prize: 4000, rating: 46 },
+  { id: 3, name: 'Premio delle Querce', track: 'Ippodromo delle Querce', dist: 1600, fee: 600, prize: 9000, rating: 55 },
+  { id: 4, name: 'Derby di Primavera', track: 'Ippodromo Reale', dist: 2000, fee: 1200, prize: 20000, rating: 64 },
+  { id: 5, name: 'Gran Premio Nazionale', track: 'Ippodromo Reale', dist: 2400, fee: 2500, prize: 50000, rating: 74 }
+];
+var RIVALS = [
+  { id: 'aurora', name: 'Scuderia Aurora', silk: '#1F4E9C', cap: '#F2C230' },
+  { id: 'querce', name: 'Allevamento Le Querce', silk: '#2E6B3A', cap: '#F4F1E8' },
+  { id: 'velino', name: 'Razza del Velino', silk: '#8E1F2F', cap: '#E8E2D0' },
+  { id: 'tirrena', name: 'Scuderia Tirrena', silk: '#ECEAE4', cap: '#1A1A1A' },
+  { id: 'feltro', name: 'Team Montefeltro', silk: '#5B2A86', cap: '#F28C28' }
+];
+var JOCKEYS = [
+  { name: 'Apprendista', cost: 0, bonus: 1.0, save: 1.0, desc: 'Giovane, monta gratis' },
+  { name: 'Fantino esperto', cost: 300, bonus: 1.02, save: 0.95, desc: 'Velocità +2%' },
+  { name: 'Campione', cost: 900, bonus: 1.04, save: 0.88, desc: 'Velocità +4%, fiato risparmiato' }
+];
+var NAMES = ['Vento di Maremma', 'Fulmine Nero', 'Stella d’Agosto', 'Re del Palio', 'Bora', 'Lampo Rosso', 'Sogno Ribelle', 'Gran Visir', 'Ombra Lunga', 'Selvaggia', 'Duca Bianco', 'Maestrale', 'Notte di Siena', 'Furia', 'Brezza Marina', 'Capitano', 'Altair', 'Zefiro', 'Orgoglio', 'Scintilla', 'Libeccio', 'Principe Azzurro', 'Luna Piena', 'Tempesta', 'Barone Rosso', 'Aria di Festa', 'Corsaro', 'Dama di Cuori', 'Fiume Antico', 'Sirocco'];
+var COATS = ['baio', 'baio_scuro', 'sauro', 'morello', 'grigio', 'palomino'];
+var COAT_LABEL = { baio: 'Baio', baio_scuro: 'Baio scuro', sauro: 'Sauro', morello: 'Morello', grigio: 'Grigio', palomino: 'Palomino' };
+var POINTS = [10, 6, 4, 3, 2, 1];
+var PRIZE_SHARE = [1, 0.4, 0.2, 0.1, 0, 0];
+var DIFF = { facile: -6, normale: 0, difficile: 6 };
+var SILKS = ['#D9822B', '#C8452F', '#2B6CB0', '#F2F0E8'];
+var CAPS = ['#1E2A44', '#F2F0E8', '#D4AF37', '#1F6B3A'];
+
+function ri(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function rating(h) { return Math.round((h.vel + h.res + h.acc) / 3); }
+function price(h) { var r = rating(h); return Math.round(r * r * 2.4 / 50) * 50; }
+function euro(n) { var v = Math.round(n); return (v < 0 ? '-€ ' : '€ ') + Math.abs(v).toLocaleString('it-IT'); }
+function fmtTime(t) { var m = Math.floor(t / 60); var s = t - m * 60; return m + ':' + (s < 10 ? '0' : '') + s.toFixed(1); }
+function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+/* ---------- Cavallo in SVG ---------- */
+var HCOATS = {
+  baio: { body: '#8A4E2B', shade: '#5E3219', leg: '#1E1612', legDark: '#140E0B', mane: '#18110D' },
+  baio_scuro: { body: '#4E2D1C', shade: '#331C10', leg: '#17110D', legDark: '#0F0B08', mane: '#120D0A' },
+  sauro: { body: '#B4652F', shade: '#86451C', leg: '#A9592A', legDark: '#7A3E18', mane: '#C9783C' },
+  morello: { body: '#2A2628', shade: '#141213', leg: '#1A1718', legDark: '#0E0D0D', mane: '#0C0B0B' },
+  grigio: { body: '#BAB6AF', shade: '#8E8981', leg: '#7A756E', legDark: '#5E5A54', mane: '#E9E6E0' },
+  palomino: { body: '#D2A65C', shade: '#A97E3C', leg: '#C59650', legDark: '#93703A', mane: '#F1E6C8' }
+};
+var POSES = [
+  { nf: [106, 68, 124, 86, 138, 94], ff: [100, 68, 116, 88, 126, 100], nh: [46, 66, 30, 86, 16, 94], fh: [52, 66, 40, 88, 28, 100], bob: 0 },
+  { nf: [106, 68, 116, 88, 120, 102], ff: [100, 68, 104, 88, 100, 102], nh: [46, 66, 42, 88, 36, 102], fh: [52, 66, 56, 88, 54, 102], bob: -2 },
+  { nf: [106, 68, 108, 86, 98, 96], ff: [100, 68, 96, 86, 88, 98], nh: [46, 66, 60, 86, 70, 96], fh: [52, 66, 66, 84, 78, 92], bob: -4 },
+  { nf: [106, 68, 116, 88, 120, 102], ff: [100, 68, 104, 88, 100, 102], nh: [46, 66, 42, 88, 36, 102], fh: [52, 66, 56, 88, 54, 102], bob: -2 }
+];
+var STAND = { nf: [106, 68, 107, 88, 107, 104], ff: [100, 68, 100, 88, 100, 104], nh: [44, 66, 41, 88, 44, 104], fh: [52, 66, 54, 88, 57, 104], bob: 0 };
+var TAIL_RUN = 'M30 44 C18 44 8 50 2 60 C10 58 16 56 22 54 C14 60 10 66 8 72 C18 64 24 58 30 52 Z';
+var TAIL_STAND = 'M30 44 C22 48 20 60 22 76 C24 86 26 92 28 96 C30 86 30 76 31 66 C32 58 33 52 32 46 Z';
+function legSVG(a, upper, lower, wUp, hoof) {
+  return '<line x1="' + a[0] + '" y1="' + a[1] + '" x2="' + a[2] + '" y2="' + a[3] + '" stroke="' + upper + '" stroke-width="' + wUp + '" stroke-linecap="round"/>' +
+    '<line x1="' + a[2] + '" y1="' + a[3] + '" x2="' + a[4] + '" y2="' + a[5] + '" stroke="' + lower + '" stroke-width="5" stroke-linecap="round"/>' +
+    '<circle cx="' + a[4] + '" cy="' + a[5] + '" r="3.5" fill="' + hoof + '"/>';
+}
+function horseSVG(o) {
+  var size = o.size || 320, frame = o.frame == null ? -1 : o.frame;
+  var p = frame < 0 ? STAND : POSES[((frame % 4) + 4) % 4];
+  var c = HCOATS[o.coat] || HCOATS.baio;
+  var h = Math.round(size * 110 / 160);
+  var s = '<svg width="' + size + '" height="' + h + '" viewBox="0 0 160 110" aria-hidden="true" style="display:block;overflow:visible">';
+  s += '<ellipse cx="84" cy="106" rx="' + (frame < 0 ? 52 : 46 + p.bob) + '" ry="3.5" fill="#000" opacity="0.25"/>';
+  s += '<g transform="translate(0 ' + p.bob + ')">';
+  s += legSVG(p.fh, c.shade, c.legDark, 10, '#141414') + legSVG(p.ff, c.shade, c.legDark, 8, '#141414');
+  s += '<path d="' + (frame < 0 ? TAIL_STAND : TAIL_RUN) + '" fill="' + c.mane + '"/>';
+  s += '<path d="M28 52 C26 42 34 36 48 36 L92 38 C100 30 110 18 122 12 C128 8 134 8 138 12 L156 30 C159 34 156 39 151 39 L140 36 C134 34 128 32 124 34 C120 42 116 50 114 58 C112 68 104 74 94 74 L52 74 C40 74 30 66 28 52 Z" fill="' + c.body + '"/>';
+  s += '<path d="M54 72 C68 75 84 75 96 71" stroke="' + c.shade + '" stroke-width="4" fill="none" opacity="0.7" stroke-linecap="round"/>';
+  s += '<path d="M40 40 C58 36 78 37 92 40" stroke="#fff" stroke-width="3" fill="none" opacity="0.16" stroke-linecap="round"/>';
+  s += '<path d="M96 44 C104 52 105 63 99 72" stroke="' + c.shade + '" stroke-width="1.6" fill="none" opacity="0.8"/>';
+  s += '<path d="M40 44 C52 42 58 53 54 69" stroke="' + c.shade + '" stroke-width="1.6" fill="none" opacity="0.8"/>';
+  s += '<path d="M112 24 C118 26 126 30 128 33" stroke="' + c.shade + '" stroke-width="1.2" fill="none" opacity="0.6"/>';
+  s += '<path d="M128 11 L129 3 L133 10 Z" fill="' + c.shade + '"/><path d="M131 10 L134 1 L138 10 Z" fill="' + c.body + '"/>';
+  s += '<path d="M98 37 C106 27 114 17 124 10 L130 13 C120 20 112 30 105 40 Z" fill="' + c.mane + '"/>';
+  if (o.blaze) s += '<path d="M138 13 L152 31 L149 33 L136 17 Z" fill="#F4F1EA"/>';
+  s += '<circle cx="140.5" cy="17.5" r="2" fill="#0B0B0B"/><circle cx="141.2" cy="16.8" r="0.6" fill="#fff"/><circle cx="152.5" cy="34" r="1.2" fill="#0B0B0B" opacity="0.8"/>';
+  s += '<path d="M135 13 L149 34 M144 30 L155 31.5 M135 13 C132 18 128 24 126 30" stroke="#2B1D14" stroke-width="1.4" fill="none" stroke-linecap="round"/>';
+  s += legSVG(p.nh, c.body, c.leg, 10, '#1A1A1A') + legSVG(p.nf, c.body, c.leg, 8, '#1A1A1A');
+  if (o.jockey) {
+    s += '<rect x="60" y="36" width="30" height="20" rx="2" fill="#F4F1E8" stroke="#2A2A2A" stroke-width="0.6"/>';
+    s += '<text x="75" y="51" text-anchor="middle" font-size="12" font-weight="600" font-family="IBM Plex Sans, sans-serif" fill="#1A1A1A">' + esc(o.num || '') + '</text>';
+    s += '<path d="M66 37 L90 37" stroke="#3A2A1E" stroke-width="2.5"/>';
+    s += '<path d="M82 33 L96 42 L92 49 L80 40 Z" fill="#F4F1EA" stroke="#C9C4B8" stroke-width="0.5"/><path d="M91 42 L98 43 L95 53 L88 51 Z" fill="#151515"/>';
+    s += '<path d="M70 32 C74 21 89 15 102 19 L107 25 C97 27 86 32 78 39 Z" fill="' + o.silk + '"/>';
+    s += '<path d="M72 30 C80 26 92 22 104 22" stroke="#000" stroke-width="1" opacity="0.18" fill="none"/>';
+    s += '<path d="M98 21 L114 27 L116 31 L100 27 Z" fill="' + o.silk + '"/><circle cx="117" cy="30" r="2.6" fill="#E3C2A0"/>';
+    s += '<path d="M117 30 L149 34" stroke="#3A2A1E" stroke-width="1.2"/>';
+    s += '<circle cx="107" cy="15" r="6.5" fill="' + o.cap + '"/><path d="M111 14 L118 15.5 L111 18 Z" fill="' + o.cap + '"/>';
+    s += '<path d="M102 12 C105 9 109 9 112 11" stroke="#fff" stroke-width="1" opacity="0.35" fill="none"/>';
+  }
+  return s + '</g></svg>';
+}
+
+/* ---------- Carriera ---------- */
+function makeHorse(id, base) {
+  return {
+    id: id, name: pick(NAMES), coat: pick(COATS), blaze: Math.random() < 0.4,
+    vel: clamp(base + ri(-7, 7), 15, 95), res: clamp(base + ri(-7, 7), 15, 95), acc: clamp(base + ri(-7, 7), 15, 95),
+    energy: 100, morale: 60, trained: false, raced: false, cared: false, starts: 0, wins: 0, earnings: 0, form: []
+  };
+}
+function genMarket(unlocked) {
+  var list = [];
+  for (var i = 0; i < 4; i++) list.push(makeHorse('m' + i, clamp(26 + unlocked * 8 + ri(-10, 10), 20, 85)));
+  return list;
+}
+function freshCareer() {
+  var starter = makeHorse(1, 38);
+  starter.name = 'Vento di Maremma'; starter.coat = 'baio';
+  var stables = { me: 0 }, swins = { me: 0 };
+  RIVALS.forEach(function (r) { stables[r.id] = 0; swins[r.id] = 0; });
+  return { money: 6000, week: 1, nid: 2, horses: [starter], selId: 1, market: genMarket(1), unlocked: 1, best: {}, records: {}, stables: stables, swins: swins, career: { starts: 0, wins: 0, earn: 0 }, silk: SILKS[0], cap: CAPS[0], difficulty: 'normale' };
+}
+var SAVE_KEYS = ['money', 'week', 'nid', 'horses', 'selId', 'market', 'unlocked', 'best', 'records', 'stables', 'swins', 'career', 'silk', 'cap', 'difficulty'];
+
+var S = Object.assign(freshCareer(), { screen: 'stable', selLevel: 1, jockey: 0, muted: false, race: null, msg: 'Benvenuto. Allena il tuo cavallo e iscrivilo alla prima corsa.' });
+try {
+  var raw = localStorage.getItem(KEY);
+  if (raw) { var data = JSON.parse(raw); if (data && data.horses && data.horses.length) { Object.assign(S, data); S.msg = 'Bentornato in scuderia.'; } }
+} catch (e) {}
+function save() {
+  try { var out = {}; SAVE_KEYS.forEach(function (k) { out[k] = S[k]; }); localStorage.setItem(KEY, JSON.stringify(out)); } catch (e) {}
+}
+function selHorse() { return S.horses.find(function (h) { return h.id === S.selId; }) || S.horses[0]; }
+
+/* ---------- Audio ---------- */
+var ac = null, nbuf = null, crowd = null;
+function audio() {
+  if (S.muted) return null;
+  try {
+    if (!ac) { var C = window.AudioContext || window.webkitAudioContext; if (!C) return null; ac = new C(); }
+    if (ac.state === 'suspended') ac.resume();
+    return ac;
+  } catch (e) { return null; }
+}
+function tone(freq, dur, type, vol, when) {
+  var a = audio(); if (!a) return;
+  var t = a.currentTime + (when || 0);
+  var o = a.createOscillator(), g = a.createGain();
+  o.type = type || 'sine'; o.frequency.setValueAtTime(freq, t);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol || 0.2, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(a.destination); o.start(t); o.stop(t + dur + 0.05);
+}
+function noiseBuffer() {
+  var a = audio(); if (!a) return null;
+  if (!nbuf) { var len = a.sampleRate * 2; nbuf = a.createBuffer(1, len, a.sampleRate); var d = nbuf.getChannelData(0); for (var i = 0; i < len; i++) d[i] = Math.random() * 2 - 1; }
+  return nbuf;
+}
+function thump(when, vol) {
+  var a = audio(), buf = noiseBuffer(); if (!a || !buf) return;
+  var t = a.currentTime + when;
+  var src = a.createBufferSource(); src.buffer = buf;
+  var f = a.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 380;
+  var g = a.createGain();
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+  src.connect(f); f.connect(g); g.connect(a.destination); src.start(t, Math.random()); src.stop(t + 0.12);
+  tone(70 + Math.random() * 20, 0.08, 'sine', vol * 0.7, when);
+}
+function crowdStart() {
+  var a = audio(), buf = noiseBuffer(); if (!a || !buf || crowd) return;
+  var src = a.createBufferSource(); src.buffer = buf; src.loop = true;
+  var f = a.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 850; f.Q.value = 0.6;
+  var g = a.createGain(); g.gain.value = 0.0001;
+  src.connect(f); f.connect(g); g.connect(a.destination); src.start();
+  g.gain.setTargetAtTime(0.02, a.currentTime, 0.5);
+  crowd = { src: src, gain: g };
+}
+function crowdLevel(v) { if (crowd && ac) crowd.gain.gain.setTargetAtTime(v, ac.currentTime, 0.4); }
+function crowdStop() {
+  if (!crowd) return;
+  try { var c = crowd; c.gain.gain.setTargetAtTime(0.0001, ac.currentTime, 0.5); setTimeout(function () { try { c.src.stop(); } catch (e) {} }, 2500); } catch (e) {}
+  crowd = null;
+}
+function sfx(name) {
+  if (name === 'beep') tone(660, 0.18, 'sine', 0.18);
+  if (name === 'go') { tone(1046, 0.9, 'triangle', 0.22); tone(1568, 0.9, 'triangle', 0.12); tone(1046, 0.9, 'triangle', 0.18, 0.25); }
+  if (name === 'power') [523, 659, 784, 1047].forEach(function (f, i) { tone(f, 0.18, 'sine', 0.16, i * 0.06); });
+  if (name === 'coin') { tone(988, 0.1, 'square', 0.08); tone(1319, 0.3, 'square', 0.08, 0.09); }
+  if (name === 'fanfare') [392, 523, 659, 784, 659, 784].forEach(function (f, i) { tone(f, i === 5 ? 0.7 : 0.16, 'sawtooth', 0.07, i * 0.15); });
+  if (name === 'call') [392, 523, 659, 784, 659, 523, 784].forEach(function (f, i) { tone(f, 0.14, 'square', 0.05, i * 0.13); });
+  if (name === 'error') tone(180, 0.2, 'square', 0.06);
+  if (name === 'click') tone(520, 0.05, 'sine', 0.06);
+}
+
+/* ---------- Azioni di gestione ---------- */
+function updateHorse(id, fn) { S.horses = S.horses.map(function (h) { return h.id === id ? fn(Object.assign({}, h)) : h; }); }
+function commit() { save(); render(); }
+var A = {
+  tab: function (t) { if (S.screen === 'race') return; sfx('click'); S.screen = t; S.msg = ''; render(); },
+  mute: function () { S.muted = !S.muted; if (S.muted) crowdStop(); renderTop(); },
+  selHorse: function (id) { sfx('click'); S.selId = +id; S.msg = ''; render(); },
+  train: function (stat) {
+    var h = selHorse(); var labels = { vel: 'la velocità', res: 'la resistenza', acc: 'l’accelerazione' };
+    if (!h || h.trained || h.raced || h.energy < 25 || S.money < 300) { sfx('error'); return; }
+    var gain = Math.max(1, Math.round((1 + Math.random() * 3) * (1 - h[stat] / 130)));
+    updateHorse(h.id, function (x) { x[stat] = Math.min(99, x[stat] + gain); x.energy -= 25; x.morale = clamp(x.morale - 2, 0, 100); x.trained = true; return x; });
+    S.money -= 300; S.msg = h.name + ' ha lavorato su ' + labels[stat] + '. Guadagna ' + gain + ' punti.';
+    sfx('click'); commit();
+  },
+  care: function () {
+    var h = selHorse(); if (!h || h.cared || S.money < 200) { sfx('error'); return; }
+    updateHorse(h.id, function (x) { x.energy = Math.min(100, x.energy + 15); x.morale = Math.min(100, x.morale + 10); x.cared = true; return x; });
+    S.money -= 200; S.msg = 'Veterinario e massaggi per ' + h.name + '. Più energia e più morale.';
+    sfx('click'); commit();
+  },
+  sell: function () {
+    var h = selHorse();
+    if (S.horses.length < 2) { sfx('error'); S.msg = 'Non puoi vendere il tuo unico cavallo.'; render(); return; }
+    var val = Math.round(price(h) * 0.7 / 50) * 50;
+    S.horses = S.horses.filter(function (x) { return x.id !== h.id; });
+    S.selId = S.horses[0].id; S.money += val; S.msg = 'Hai venduto ' + h.name + ' per ' + euro(val) + '.';
+    sfx('coin'); commit();
+  },
+  buy: function (i) {
+    i = +i; var m = S.market[i]; if (!m) return; var p = price(m);
+    if (S.horses.length >= 6 || S.money < p) { sfx('error'); S.msg = S.horses.length >= 6 ? 'I box sono pieni. Vendi un cavallo prima.' : 'Non hai abbastanza soldi.'; render(); return; }
+    var h = Object.assign({}, m, { id: S.nid });
+    S.market = S.market.filter(function (_, j) { return j !== i; });
+    S.horses = S.horses.concat([h]); S.nid += 1; S.money -= p; S.selId = h.id; S.msg = h.name + ' entra nella tua scuderia.';
+    sfx('coin'); commit();
+  },
+  nextWeek: function () {
+    var upkeep = 150 * S.horses.length;
+    S.horses = S.horses.map(function (h) {
+      var x = Object.assign({}, h);
+      x.energy = Math.min(100, x.energy + (x.trained || x.raced ? 15 : 35));
+      x.morale = Math.round(x.morale + (60 - x.morale) * 0.2 + (x.trained || x.raced ? 0 : 3));
+      x.trained = false; x.raced = false; x.cared = false; return x;
+    });
+    RIVALS.forEach(function (r) { S.stables[r.id] += ri(0, 4); });
+    S.week += 1; S.money -= upkeep; S.market = genMarket(S.unlocked);
+    S.msg = 'Settimana ' + S.week + '. Hai pagato ' + euro(upkeep) + ' di mantenimento.';
+    sfx('click'); commit();
+  },
+  goRaces: function () { A.tab('races'); },
+  level: function (id) { sfx('click'); S.selLevel = +id; render(); },
+  entry: function (id) { S.selId = +id; render(); },
+  jockey: function (i) { S.jockey = +i; render(); },
+  silk: function (c) { S.silk = c; commit(); },
+  cap: function (c) { S.cap = c; commit(); },
+  diff: function (d) { S.difficulty = d; commit(); },
+  reset: function () {
+    if (!confirm('Vuoi davvero cancellare la carriera e ricominciare?')) return;
+    var keep = { silk: S.silk, cap: S.cap, difficulty: S.difficulty };
+    Object.assign(S, freshCareer(), keep, { screen: 'stable', selLevel: 1, jockey: 0, race: null, msg: 'Nuova carriera. Buona fortuna.' });
+    commit();
+  },
+  start: function () { startRace(); },
+  pace: function (p) { setPace(+p); },
+  laneUp: function () { moveLane(-1); },
+  laneDown: function () { moveLane(1); },
+  closeRace: function () { crowdStop(); S.screen = 'stable'; S.race = null; render(); }
+};
+
+function raceCheck() {
+  var h = selHorse(), lv = LEVELS[S.selLevel - 1], j = JOCKEYS[S.jockey];
+  if (!h) return 'Nessun cavallo in scuderia.';
+  if (S.selLevel > S.unlocked) return 'Livello bloccato. Arriva nei primi tre del livello precedente.';
+  if (h.raced) return h.name + ' ha già corso questa settimana.';
+  if (h.energy < 40) return h.name + ' è troppo stanco. Serve energia 40.';
+  if (S.money < lv.fee + j.cost) return 'Ti servono ' + euro(lv.fee + j.cost) + ' per iscrizione e fantino.';
+  return '';
+}
+
+/* ---------- Gara ---------- */
+function aiPace(x, race) {
+  var frac = x.pos / race.dist;
+  if (frac < 0.05) return 1;
+  var remT = Math.max(0, race.dist - x.pos) / 16.5;
+  var k = 1.45 - x.res / 100;
+  if (x.strategy === 'attesa' && frac < 0.5) return x.stam > 75 ? 1 : 0;
+  if (x.stam >= remT * 4.2 * k * x.nerve) return 2;
+  if (x.strategy === 'fuga' && x.stam > 8) return 1;
+  if (x.stam >= remT * 1.1 * k * x.nerve) return 1;
+  return 0;
+}
+function stepRacer(x, race, dt) {
+  if (x.finished) { x.pos += x.speed * dt; x.speed = Math.max(6, x.speed * 0.985); return; }
+  var pace = x.isPlayer ? x.pace : aiPace(x, race);
+  x.pace = pace;
+  var top = 14 + x.vel * 0.055;
+  var mult = pace === 0 ? 0.84 : (pace === 1 ? 0.94 : 1.05);
+  var drain = pace === 0 ? -1.3 : (pace === 1 ? 1.1 : 4.2);
+  if (drain > 0) drain = drain * (1.45 - x.res / 100) * x.save;
+  if (x.isPlayer && race.t < race.ironUntil && drain > 0) drain = 0;
+  x.stam = clamp(x.stam - drain * dt, 0, 100);
+  if (x.stam <= 0.5 && pace > 0) mult *= 0.82;
+  mult *= 0.97 + x.morale / 100 * 0.06;
+  mult *= 0.92 + x.energy / 100 * 0.08;
+  mult *= x.bonus;
+  if (x.isPlayer && race.t < race.boostUntil) mult *= 1.12;
+  var target = top * mult * (1 + (Math.random() - 0.5) * 0.02);
+  var k = 0.35 + x.acc / 100 * 0.9;
+  x.speed += (target - x.speed) * Math.min(1, k * dt);
+  x.pos += x.speed * dt;
+  if (!x.isPlayer && Math.random() < 0.004) x.lane = clamp(x.lane + (Math.random() < 0.5 ? -1 : 1), 0, 5);
+  if (x.pos >= race.dist) { x.finished = true; x.time = race.t - (x.pos - race.dist) / Math.max(1, x.speed); }
+}
+function orderOf(race) {
+  return race.racers.slice().sort(function (a, b) {
+    if (a.finished && b.finished) return a.time - b.time;
+    if (a.finished) return -1;
+    if (b.finished) return 1;
+    return b.pos - a.pos;
+  });
+}
+var lastCount = 4, lastStride = 0;
+function startRace() {
+  if (raceCheck()) { sfx('error'); return; }
+  var lv = LEVELS[S.selLevel - 1], j = JOCKEYS[S.jockey], h = selHorse();
+  var base = lv.rating + (DIFF[S.difficulty] || 0);
+  var lanes = [0, 1, 2, 3, 4, 5].sort(function () { return Math.random() - 0.5; });
+  var racers = [{
+    id: 'me', isPlayer: true, name: h.name, stable: 'La tua scuderia', stableId: 'me', silk: S.silk, cap: S.cap,
+    coat: h.coat, blaze: h.blaze, vel: h.vel, res: h.res, acc: h.acc, morale: h.morale, energy: h.energy,
+    bonus: j.bonus, save: j.save, lane: lanes[0], pos: 0, speed: 0, stam: 100, pace: 1, phase: Math.random(), finished: false, time: 0, nerve: 1
+  }];
+  var used = {}; used[h.name] = true;
+  RIVALS.forEach(function (r, i) {
+    var o = makeHorse('r' + i, base + ri(-4, 4));
+    while (used[o.name]) o.name = pick(NAMES);
+    used[o.name] = true;
+    racers.push({
+      id: r.id, isPlayer: false, name: o.name, stable: r.name, stableId: r.id, silk: r.silk, cap: r.cap,
+      coat: o.coat, blaze: o.blaze, vel: o.vel, res: o.res, acc: o.acc, morale: ri(50, 75), energy: ri(80, 100),
+      bonus: 1, save: 1, lane: lanes[i + 1], pos: 0, speed: 0, stam: 100, pace: 1, phase: Math.random(), finished: false, time: 0,
+      strategy: pick(['fuga', 'attesa', 'media', 'media']), nerve: 0.9 + Math.random() * 0.25
+    });
+  });
+  racers.forEach(function (r, i) { r.num = String(i + 1); });
+  var items = [];
+  for (var m = 140; m < lv.dist - 80; m += ri(90, 150)) {
+    var roll = Math.random();
+    items.push({ m: m, lane: ri(0, 5), kind: roll < 0.45 ? 'carota' : (roll < 0.8 ? 'zolletta' : 'ferro'), taken: false });
+  }
+  updateHorse(h.id, function (x) { x.raced = true; return x; });
+  S.money -= lv.fee + j.cost;
+  S.race = { lvl: lv.id, dist: lv.dist, t: 0, count: 3.6, racers: racers, items: items, boostUntil: 0, ironUntil: 0, done: false, results: null, toast: '', toastUntil: 0, playerDone: false, playerDoneT: 0 };
+  S.screen = 'race'; lastCount = 4;
+  save(); sfx('call'); render();
+}
+function setPace(p) { var r = S.race; if (!r || r.done || r.racers[0].finished) return; r.racers[0].pace = p; updateRace(); }
+function moveLane(d) { var r = S.race; if (!r || r.done || r.racers[0].finished) return; r.racers[0].lane = clamp(r.racers[0].lane + d, 0, 5); updateRace(); }
+
+function tick() {
+  var race = S.race;
+  if (S.screen !== 'race' || !race || race.done) return;
+  if (race.count > 0) {
+    race.count -= 0.05;
+    var c = Math.ceil(race.count);
+    if (c !== lastCount && c <= 3) { lastCount = c; if (c > 0) sfx('beep'); }
+    if (race.count <= 0) { sfx('go'); crowdStart(); }
+    updateRace(); return;
+  }
+  var me = race.racers[0];
+  var steps = race.playerDone ? 3 : 1;
+  for (var n = 0; n < steps; n++) {
+    race.t += DT;
+    var prev = me.pos;
+    race.racers.forEach(function (x) { stepRacer(x, race, DT); });
+    race.items.forEach(function (it) {
+      if (!it.taken && it.lane === me.lane && prev < it.m && me.pos >= it.m && !me.finished) {
+        it.taken = true; sfx('power');
+        if (it.kind === 'carota') { me.stam = Math.min(100, me.stam + 30); race.toast = 'Carota. Fiato +30'; }
+        if (it.kind === 'zolletta') { race.boostUntil = race.t + 10; race.toast = 'Zolletta di zucchero. Scatto!'; }
+        if (it.kind === 'ferro') { race.ironUntil = race.t + 15; race.toast = 'Ferro d’oro. Fiato illimitato'; }
+        race.toastUntil = race.t + 4;
+      }
+    });
+    if (me.finished && !race.playerDone) { race.playerDone = true; race.playerDoneT = race.t; crowdLevel(0.09); }
+  }
+  race.racers.forEach(function (r) { r.phase += 0.05 * (r.finished ? 1.6 : 2.4) * (0.4 + r.speed / 18); });
+  var stride = Math.floor(me.phase);
+  if (stride !== lastStride && !me.finished && me.speed > 2) {
+    lastStride = stride;
+    var per = 1 / (2.4 * (0.4 + me.speed / 18));
+    thump(0, 0.22); thump(per * 0.14, 0.18); thump(per * 0.28, 0.26);
+  }
+  if (!race.playerDone) crowdLevel(0.015 + 0.06 * Math.pow(me.pos / race.dist, 2));
+  var allDone = race.racers.every(function (r) { return r.finished; });
+  if (allDone || (race.playerDone && race.t - race.playerDoneT > 40)) { finishRace(race); return; }
+  updateRace();
+}
+function finishRace(race) {
+  var lv = LEVELS[race.lvl - 1];
+  var order = orderOf(race);
+  var place = order.findIndex(function (r) { return r.isPlayer; }) + 1;
+  var prize = Math.round(lv.prize * PRIZE_SHARE[place - 1]);
+  order.forEach(function (r, i) { S.stables[r.stableId] = (S.stables[r.stableId] || 0) + POINTS[i]; if (i === 0) S.swins[r.stableId] = (S.swins[r.stableId] || 0) + 1; });
+  updateHorse(S.selId, function (x) {
+    x.energy = Math.max(0, x.energy - 35);
+    x.morale = clamp(x.morale + (place === 1 ? 15 : place <= 3 ? 6 : -5), 0, 100);
+    x.starts += 1; if (place === 1) x.wins += 1; x.earnings += prize;
+    x.form = [place].concat(x.form || []).slice(0, 5); return x;
+  });
+  if (!S.best[lv.id] || place < S.best[lv.id]) S.best[lv.id] = place;
+  var winner = order[0];
+  if (winner.finished && (!S.records[lv.id] || winner.time < S.records[lv.id].time)) S.records[lv.id] = { time: winner.time, horse: winner.name };
+  var note = '';
+  if (place <= 3 && lv.id === S.unlocked && S.unlocked < LEVELS.length) { S.unlocked += 1; note = ' Hai sbloccato il livello ' + S.unlocked + '.'; }
+  S.career = { starts: S.career.starts + 1, wins: S.career.wins + (place === 1 ? 1 : 0), earn: S.career.earn + prize };
+  S.money += prize;
+  race.done = true;
+  race.results = order.map(function (r, i) { return { place: (i + 1) + '°', name: r.name, stable: r.stable, silk: r.silk, cap: r.cap, time: r.finished ? fmtTime(r.time) : 'n.d.', isPlayer: r.isPlayer }; });
+  race.title = place === 1 ? 'Vittoria!' : place + '° posto';
+  race.note = (prize > 0 ? 'Premio ' + euro(prize) + '. ' : 'Nessun premio questa volta. ') + 'Punti in classifica +' + POINTS[place - 1] + '.' + note;
+  S.msg = 'Ultima corsa ' + place + '° nel ' + lv.name + '.';
+  crowdLevel(place === 1 ? 0.12 : 0.05);
+  setTimeout(crowdStop, 2500);
+  if (place === 1) sfx('fanfare'); else if (prize > 0) sfx('coin');
+  save(); renderTop(); updateRace(); showResults();
+}
+
+/* ---------- Disegno ---------- */
+var app = document.getElementById('app');
+function bar(label, val, color, h) {
+  h = h || 8;
+  return '<div style="display:flex;flex-direction:column;gap:4px"><div style="display:flex;justify-content:space-between;font-size:13px"><span>' + label + '</span><span class="mono">' + val + '</span></div>' +
+    '<div class="bar" style="height:' + h + 'px"><div style="width:' + val + '%;background:' + color + '"></div></div></div>';
+}
+var BAR_C = { vel: '#D4AF37', res: '#7FB3E0', acc: '#E8916A', energy: '#86C98A', morale: '#C9A0E6' };
+function bars3(h, size) { return bar('Velocità', h.vel, BAR_C.vel, size) + bar('Resistenza', h.res, BAR_C.res, size) + bar('Accelerazione', h.acc, BAR_C.acc, size); }
+
+function topHTML() {
+  var tabs = [['stable', 'Scuderia'], ['market', 'Mercato'], ['races', 'Corse'], ['standings', 'Classifica']];
+  var inRace = S.screen === 'race';
+  var t = '<div class="panel top" id="top"><div style="display:flex;align-items:center;gap:12px">' +
+    '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 20V11a6 6 0 0 1 12 0v9"/><path d="M4 20h4M16 20h4"/></svg>' +
+    '<div class="serif" style="font-size:28px">Gran Galoppo</div></div><nav aria-label="Sezioni" style="display:flex;gap:6px">';
+  tabs.forEach(function (x) { t += '<button class="tab' + (S.screen === x[0] ? ' on' : '') + '" data-act="tab" data-arg="' + x[0] + '"' + (inRace ? ' disabled' : '') + '>' + x[1] + '</button>'; });
+  t += '</nav><div style="display:flex;align-items:center;gap:20px">' +
+    '<div style="text-align:right"><div class="cap">SETTIMANA</div><div class="mono" style="font-size:18px">' + S.week + '</div></div>' +
+    '<div style="text-align:right"><div class="cap">CASSA</div><div class="mono" style="font-size:18px;color:' + (S.money < 0 ? '#F0B4A6' : '#D4AF37') + '">' + euro(S.money) + '</div></div>' +
+    '<button data-act="mute" aria-label="' + (S.muted ? 'Attiva i suoni' : 'Disattiva i suoni') + '" style="width:44px;height:44px;border-radius:8px;border:1px solid var(--line);background:var(--bg);display:flex;align-items:center;justify-content:center">' +
+    '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5L6 9H2v6h4l5 4z"/>' +
+    (S.muted ? '<path d="M22 9l-6 6M16 9l6 6"/>' : '<path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/>') + '</svg></button></div></div>';
+  return t;
+}
+function renderTop() { var el = document.getElementById('top'); if (el) el.outerHTML = topHTML(); }
+
+function stableHTML() {
+  var h = selHorse();
+  var list = S.horses.map(function (x) {
+    var busy = x.raced || x.trained;
+    var st = x.raced ? 'Ha corso questa settimana' : (x.trained ? 'Allenato questa settimana' : 'Disponibile');
+    return '<button class="sel' + (h && x.id === h.id ? ' on' : '') + '" data-act="selHorse" data-arg="' + x.id + '" style="display:flex;align-items:center;gap:12px;padding:10px 12px">' +
+      horseSVG({ coat: x.coat, blaze: x.blaze, size: 96, frame: -1 }) +
+      '<div style="flex:1;display:flex;flex-direction:column;gap:3px"><div style="font-size:16px;font-weight:600">' + esc(x.name) + '</div>' +
+      '<div class="muted" style="font-size:13px">' + COAT_LABEL[x.coat] + ', valore ' + rating(x) + '</div>' +
+      '<div style="font-size:12px;color:' + (busy ? '#E9D9A6' : '#86C98A') + '">' + st + '</div></div>' +
+      '<div class="mono muted" style="font-size:13px">E ' + x.energy + '</div></button>';
+  }).join('');
+  var busy = h.trained || h.raced;
+  var trainOff = busy || h.energy < 25 || S.money < 300;
+  var trainHint = busy ? 'Già impegnato' : (h.energy < 25 ? 'Energia bassa' : '€ 300, energia -25');
+  var sellVal = Math.round(price(h) * 0.7 / 50) * 50;
+  var actions = [
+    ['Galoppo veloce', trainHint, trainOff, 'train', 'vel'],
+    ['Lavoro di fondo', trainHint, trainOff, 'train', 'res'],
+    ['Prove di partenza', trainHint, trainOff, 'train', 'acc'],
+    ['Veterinario e massaggi', h.cared ? 'Già fatto' : '€ 200, energia +15, morale +10', h.cared || S.money < 200, 'care', ''],
+    ['Iscrivi a una corsa', 'Apri il calendario', false, 'goRaces', ''],
+    ['Vendi', 'Ricavi ' + euro(sellVal), S.horses.length < 2, 'sell', '']
+  ].map(function (a) {
+    return '<button class="act" data-act="' + a[3] + '" data-arg="' + a[4] + '"' + (a[2] ? ' disabled' : '') + '><span style="font-size:15px;font-weight:600">' + a[0] + '</span><span class="muted" style="font-size:12px">' + a[1] + '</span></button>';
+  }).join('');
+  var form = h.form && h.form.length ? h.form.map(function (p) { return p + '°'; }).join('  ') : 'nessuno';
+  return '<div style="flex:1;min-height:0;display:grid;grid-template-columns:380px minmax(0,1fr);gap:16px">' +
+    '<div style="display:flex;flex-direction:column;gap:12px;min-height:0">' +
+    '<div style="display:flex;justify-content:space-between;align-items:baseline"><h2 class="serif" style="margin:0;font-size:26px">La tua scuderia</h2><div class="muted" style="font-size:13px">' + S.horses.length + ' di 6 box</div></div>' +
+    '<div class="scroll" style="flex:1;display:flex;flex-direction:column;gap:8px;padding-right:4px">' + list + '</div>' +
+    '<div class="panel" style="padding:14px;border-radius:10px;display:flex;flex-direction:column;gap:10px"><div class="muted" style="font-size:13px;line-height:1.45">Fine settimana. Paghi ' + euro(150 * S.horses.length) + ' di mantenimento. I cavalli recuperano energia e il mercato cambia.</div>' +
+    '<button class="primary" data-act="nextWeek" style="min-height:46px;font-size:15px">Passa alla settimana ' + (S.week + 1) + '</button></div></div>' +
+    '<div class="panel scroll" style="padding:24px;display:flex;flex-direction:column;gap:18px">' +
+    '<div style="display:flex;gap:28px;align-items:center"><div class="horsebox" style="width:400px;height:275px;flex:none">' + horseSVG({ coat: h.coat, blaze: h.blaze, size: 380, frame: -1 }) + '</div>' +
+    '<div style="flex:1;display:flex;flex-direction:column;gap:10px"><div class="gold" style="font-size:12px;letter-spacing:.12em">VALORE ' + rating(h) + '</div>' +
+    '<h2 class="serif" style="margin:0;font-size:40px;line-height:1.05">' + esc(h.name) + '</h2>' +
+    '<div class="muted" style="font-size:15px">' + COAT_LABEL[h.coat] + '. ' + h.starts + ' corse, ' + h.wins + ' vittorie, ' + euro(h.earnings) + ' vinti.</div>' +
+    '<div class="muted" style="font-size:14px">Ultimi piazzamenti ' + form + '</div>' +
+    '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 20px;margin-top:6px">' + bars3(h) + bar('Energia', h.energy, BAR_C.energy) + bar('Morale', h.morale, BAR_C.morale) + '</div></div></div>' +
+    '<div style="display:flex;flex-direction:column;gap:10px"><h3 style="margin:0;font-size:16px;font-weight:600">Programma della settimana</h3>' +
+    '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">' + actions + '</div>' +
+    '<div style="font-size:14px;color:var(--note);min-height:20px">' + esc(S.msg || '') + '</div></div></div></div>';
+}
+
+function marketHTML() {
+  var cards = S.market.map(function (m, i) {
+    var p = price(m), off = S.money < p || S.horses.length >= 6;
+    return '<div class="panel" style="padding:16px;display:flex;flex-direction:column;gap:10px"><div class="horsebox" style="height:180px">' + horseSVG({ coat: m.coat, blaze: m.blaze, size: 250, frame: -1 }) + '</div>' +
+      '<div class="serif" style="font-size:24px">' + esc(m.name) + '</div><div class="muted" style="font-size:13px">' + COAT_LABEL[m.coat] + ', valore ' + rating(m) + '</div>' + bars3(m, 6) +
+      '<div style="margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:10px"><div class="mono gold" style="font-size:18px">' + euro(p) + '</div>' +
+      '<button class="primary" data-act="buy" data-arg="' + i + '" style="min-height:44px;padding:0 20px;font-size:15px"' + (off ? ' disabled' : '') + '>Compra</button></div></div>';
+  }).join('');
+  if (!S.market.length) cards = '<div class="muted">Hai comprato tutti i cavalli in asta. Torna la prossima settimana.</div>';
+  return '<div style="flex:1;min-height:0;display:flex;flex-direction:column;gap:14px"><div style="display:flex;justify-content:space-between;align-items:baseline"><h2 class="serif" style="margin:0;font-size:30px">Asta della settimana</h2><div style="font-size:14px;color:var(--note)">' + esc(S.msg || '') + '</div></div>' +
+    '<div style="flex:1;min-height:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px">' + cards + '</div></div>';
+}
+
+function racesHTML() {
+  var levels = LEVELS.map(function (l) {
+    var locked = l.id > S.unlocked, b = S.best[l.id];
+    var status = locked ? 'Bloccato' : (b ? 'Miglior piazzamento ' + b + '°' : 'Aperto');
+    var sc = locked ? '#B9C4B5' : (b === 1 ? '#D4AF37' : '#86C98A');
+    return '<button class="sel' + (l.id === S.selLevel ? ' on' : '') + '" data-act="level" data-arg="' + l.id + '"' + (locked ? ' disabled' : '') + ' style="display:grid;grid-template-columns:56px minmax(0,1fr) 120px 150px;align-items:center;gap:14px;padding:12px 16px">' +
+      '<div class="serif gold" style="width:48px;height:48px;border-radius:24px;background:var(--bg);border:2px solid var(--gold);display:flex;align-items:center;justify-content:center;font-size:22px">' + l.id + '</div>' +
+      '<div><div style="font-size:17px;font-weight:600">' + l.name + '</div><div class="muted" style="font-size:13px">' + l.track + ', ' + l.dist + ' metri su erba</div></div>' +
+      '<div><div class="cap">MONTEPREMI</div><div class="mono gold" style="font-size:15px">' + euro(l.prize) + '</div></div>' +
+      '<div style="font-size:13px;color:' + sc + '">' + status + '</div></button>';
+  }).join('');
+  var L = LEVELS[S.selLevel - 1], h = selHorse();
+  var horses = S.horses.map(function (x) {
+    return '<button class="sel dark' + (h && x.id === h.id ? ' on' : '') + '" data-act="entry" data-arg="' + x.id + '" style="min-height:44px;padding:0 12px;display:flex;justify-content:space-between;align-items:center;font-size:14px"><span>' + esc(x.name) + '</span><span class="mono muted" style="font-size:12px">V ' + rating(x) + '  E ' + x.energy + '</span></button>';
+  }).join('');
+  var jockeys = JOCKEYS.map(function (j, i) {
+    return '<button class="sel dark' + (S.jockey === i ? ' on' : '') + '" data-act="jockey" data-arg="' + i + '" style="min-height:44px;padding:6px 12px;display:flex;justify-content:space-between;align-items:center;font-size:14px"><span>' + j.name + '<span class="muted" style="display:block;font-size:12px">' + j.desc + '</span></span><span class="mono" style="font-size:13px">' + (j.cost ? euro(j.cost) : 'gratis') + '</span></button>';
+  }).join('');
+  var check = raceCheck();
+  return '<div style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:16px">' +
+    '<div style="display:flex;flex-direction:column;gap:10px;min-height:0"><h2 class="serif" style="margin:0;font-size:30px">Calendario corse</h2>' + levels + '</div>' +
+    '<div class="panel scroll" style="padding:20px;display:flex;flex-direction:column;gap:14px">' +
+    '<div class="gold" style="font-size:12px;letter-spacing:.12em">LIVELLO ' + L.id + '</div><h3 class="serif" style="margin:0;font-size:28px">' + L.name + '</h3>' +
+    '<div class="muted" style="font-size:14px;line-height:1.5">' + L.dist + ' metri. Iscrizione ' + euro(L.fee) + '. Al vincitore ' + euro(L.prize) + ', al secondo il 40 per cento, al terzo il 20. Avversari di valore ' + (L.rating + (DIFF[S.difficulty] || 0)) + ' circa.</div>' +
+    '<div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:13px;font-weight:600">Cavallo</div>' + horses + '</div>' +
+    '<div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:13px;font-weight:600">Fantino</div>' + jockeys + '</div>' +
+    '<div style="font-size:14px;line-height:1.4;color:' + (check ? '#F0B4A6' : '#86C98A') + '">' + (check || 'Tutto pronto. Costo totale ' + euro(L.fee + JOCKEYS[S.jockey].cost) + '.') + '</div>' +
+    '<button class="primary" data-act="start" style="min-height:52px;border-radius:10px;font-size:17px"' + (check ? ' disabled' : '') + '>Iscriviti e vai al cancello</button></div></div>';
+}
+
+function swatches(list, cur, act) {
+  return list.map(function (c) {
+    return '<button data-act="' + act + '" data-arg="' + c + '" aria-label="Colore ' + c + '" style="width:44px;height:44px;border-radius:8px;background:' + c + ';border:3px solid ' + (c === cur ? '#D4AF37' : '#24523F') + '"></button>';
+  }).join('');
+}
+function standingsHTML() {
+  var all = [{ id: 'me', name: 'La tua scuderia', silk: S.silk, cap: S.cap }].concat(RIVALS);
+  var rows = all.map(function (st) { return { id: st.id, name: st.name, silk: st.silk, cap: st.cap, pts: S.stables[st.id] || 0, wins: S.swins[st.id] || 0 }; })
+    .sort(function (a, b) { return b.pts - a.pts || b.wins - a.wins; })
+    .map(function (r, i) {
+      return '<tr style="background:' + (r.id === 'me' ? 'var(--line)' : 'transparent') + '"><td class="serif gold" style="font-size:20px">' + (i + 1) + '</td>' +
+        '<td><span class="sw" style="background:' + r.silk + ';border-color:' + r.cap + ';margin-right:10px"></span>' + r.name + '</td>' +
+        '<td class="mono" style="text-align:right">' + r.wins + '</td><td class="mono" style="text-align:right;font-size:17px">' + r.pts + '</td></tr>';
+    }).join('');
+  var recs = LEVELS.map(function (l) {
+    var rc = S.records[l.id];
+    return '<div style="display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid var(--line);font-size:14px"><span>' + l.name + '</span><span class="muted">' + (rc ? fmtTime(rc.time) + ', ' + esc(rc.horse) : 'Nessun record') + '</span></div>';
+  }).join('');
+  var diffs = ['facile', 'normale', 'difficile'].map(function (d) {
+    return '<button class="sel dark' + (S.difficulty === d ? ' on' : '') + '" data-act="diff" data-arg="' + d + '" style="min-height:44px;padding:0 14px;font-size:14px;text-transform:capitalize">' + d + '</button>';
+  }).join('');
+  return '<div style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px">' +
+    '<div class="panel" style="padding:22px;display:flex;flex-direction:column;gap:12px"><h2 class="serif" style="margin:0;font-size:30px">Classifica scuderie</h2>' +
+    '<div class="muted" style="font-size:13px">Punti stagione. Primo 10, secondo 6, terzo 4, quarto 3, quinto 2, sesto 1.</div>' +
+    '<table><thead><tr><th>POS</th><th>SCUDERIA</th><th style="text-align:right">VITTORIE</th><th style="text-align:right">PUNTI</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<div class="scroll" style="display:flex;flex-direction:column;gap:16px">' +
+    '<div class="panel" style="padding:22px;display:flex;flex-direction:column;gap:10px"><h3 class="serif" style="margin:0;font-size:24px">Record della pista</h3>' + recs + '</div>' +
+    '<div class="panel" style="padding:22px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">' +
+    '<div><div class="cap">CORSE</div><div class="mono" style="font-size:24px">' + S.career.starts + '</div></div>' +
+    '<div><div class="cap">VITTORIE</div><div class="mono" style="font-size:24px">' + S.career.wins + '</div></div>' +
+    '<div><div class="cap">PREMI</div><div class="mono gold" style="font-size:24px">' + euro(S.career.earn) + '</div></div></div>' +
+    '<div class="panel" style="padding:22px;display:flex;flex-direction:column;gap:12px"><h3 class="serif" style="margin:0;font-size:24px">Impostazioni</h3>' +
+    '<div style="font-size:13px;font-weight:600">Giubba</div><div style="display:flex;gap:8px">' + swatches(SILKS, S.silk, 'silk') + '</div>' +
+    '<div style="font-size:13px;font-weight:600">Cap</div><div style="display:flex;gap:8px">' + swatches(CAPS, S.cap, 'cap') + '</div>' +
+    '<div style="font-size:13px;font-weight:600">Difficoltà</div><div style="display:flex;gap:8px">' + diffs + '</div>' +
+    '<button data-act="reset" style="align-self:flex-start;min-height:44px;padding:0 16px;border-radius:8px;border:1px solid #6B3A2F;background:transparent;color:#F0B4A6;font-size:14px">Ricomincia la carriera</button></div></div></div>';
+}
+
+var ICONS = {
+  carota: '<svg width="34" height="34" viewBox="0 0 34 34"><path d="M8 28 L22 10 C25 7 29 9 28 13 Z" fill="#E8742A" stroke="#A8481A" stroke-width="1.2"/><path d="M14 22l3 1M17 18l3 1M11 26l2 0.5" stroke="#A8481A" stroke-width="1"/><path d="M24 10 C24 4 28 2 30 3 C28 5 27 7 26 10 M25 11 C29 8 32 9 33 10 C30 11 28 12 26 12" fill="#4F9A38"/></svg>',
+  zolletta: '<svg width="34" height="34" viewBox="0 0 34 34"><path d="M6 12 L17 6 L28 12 L28 24 L17 30 L6 24 Z" fill="#FBFBF7" stroke="#A9A9A2" stroke-width="1.2"/><path d="M6 12 L17 18 L28 12 M17 18 V30" fill="none" stroke="#C9C9C2" stroke-width="1.2"/></svg>',
+  ferro: '<svg width="34" height="34" viewBox="0 0 34 34"><path d="M8 28 V15 a9 9 0 0 1 18 0 V28 H22 V15 a5 5 0 0 0 -10 0 V28 Z" fill="#E2B93B" stroke="#8C6A12" stroke-width="1.2"/><circle cx="10" cy="20" r="1" fill="#8C6A12"/><circle cx="24" cy="20" r="1" fill="#8C6A12"/><circle cx="17" cy="9" r="1" fill="#8C6A12"/></svg>'
+};
+var HILLS = '<svg width="1240" height="90" viewBox="0 0 1240 90"><path d="M0 70 C120 30 220 40 330 55 C430 68 520 20 660 30 C790 40 860 66 980 50 C1080 36 1160 40 1240 70 V90 H0Z" fill="#9DB79A"/><path d="M0 80 C160 60 260 72 420 66 C560 60 640 48 800 62 C940 74 1080 58 1240 80 V90 H0Z" fill="#7F9F7A"/></svg>';
+var STAND_HTML = '<div class="abs" style="left:0;top:0;width:600px;height:16px;background:#3C4650;clip-path:polygon(3% 0,97% 0,100% 100%,0 100%)"></div>' +
+  '<div class="abs" style="left:0;top:16px;width:600px;height:84px;background-color:#6E6A63;background-image:radial-gradient(circle,#E3D2AE 0 2px,transparent 2.6px),radial-gradient(circle,#9A3B32 0 2px,transparent 2.6px),radial-gradient(circle,#3D5C8A 0 1.8px,transparent 2.4px),repeating-linear-gradient(90deg,transparent 0 96px,#4A4741 96px 100px);background-size:9px 8px,14px 11px,11px 13px,100px 84px;background-position:0 0,5px 3px,2px 6px,0 0"></div>' +
+  '<div class="abs" style="left:0;top:100px;width:600px;height:20px;background:#E9E3D4;border-top:2px solid #CFC6B2"></div>' +
+  '<div class="abs" style="left:630px;top:40px;width:70px;height:86px;border-radius:50% 50% 40% 40%;background:#2F5A33"></div>' +
+  '<div class="abs" style="left:690px;top:26px;width:90px;height:100px;border-radius:50% 50% 40% 40%;background:#36673A"></div>' +
+  '<div class="abs" style="left:662px;top:100px;width:6px;height:26px;background:#4B3524"></div><div class="abs" style="left:732px;top:100px;width:6px;height:26px;background:#4B3524"></div>';
+
+function raceHTML() {
+  var paces = ['Risparmia', 'Galoppo', 'Sprint'].map(function (l, i) { return '<button class="pace" id="pace' + i + '" data-act="pace" data-arg="' + i + '">' + l + '<small>tasto ' + (i + 1) + '</small></button>'; }).join('');
+  return '<div style="display:flex;flex-direction:column;gap:12px">' +
+    '<div id="view" style="position:relative;width:1240px;height:520px;overflow:hidden;border-radius:12px;background:#BCD5E6">' +
+    '<div class="abs" style="left:0;top:0;width:1240px;height:150px;background:linear-gradient(#9EC1DB,#D7E6EE)"></div>' +
+    '<div class="abs" id="hills" style="left:0;top:70px;width:2480px;display:flex">' + HILLS + HILLS + '</div>' +
+    '<div class="abs" id="stands" style="left:0;top:96px;width:2400px;height:132px">' +
+    [0, 1, 2].map(function (i) { return '<div class="abs" style="left:' + (i * 800) + 'px;top:0;width:800px;height:132px">' + STAND_HTML + '</div>'; }).join('') + '</div>' +
+    '<div class="abs" style="left:0;top:214px;width:1240px;height:16px;background:#5C8E4E"></div>' +
+    '<div class="abs" id="turf" style="left:0;top:226px;width:1240px;height:294px;background-color:#3E7B36;background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.06) 0 120px,rgba(0,0,0,.04) 120px 240px)"></div>' +
+    '<div class="abs" id="rail" style="left:0;top:214px;width:1240px;height:18px;background-image:repeating-linear-gradient(90deg,#F4F4F0 0 4px,transparent 4px 40px)"></div>' +
+    '<div class="abs" style="left:0;top:210px;width:1240px;height:5px;background:#FAFAF6;box-shadow:0 1px 0 #9AA39A"></div>' +
+    '<div class="abs" id="layer" style="left:0;top:0;width:1240px;height:520px"></div>' +
+    '<div class="abs" id="railNear" style="left:0;top:498px;width:1240px;height:22px;background-image:repeating-linear-gradient(90deg,#F4F4F0 0 5px,transparent 5px 48px)"></div>' +
+    '<div class="abs" style="left:0;top:494px;width:1240px;height:7px;background:#FAFAF6;box-shadow:0 2px 0 #8E978E"></div>' +
+    '<div class="abs" id="overlay" style="inset:0;pointer-events:none"></div>' +
+    '<div class="abs" id="results" style="inset:0;display:none"></div></div>' +
+    '<div style="height:168px;display:grid;grid-template-columns:220px minmax(0,1fr) 300px;gap:14px">' +
+    '<div class="panel" style="padding:14px 16px;display:flex;flex-direction:column;gap:6px"><div class="cap">POSIZIONE</div>' +
+    '<div class="serif gold" style="font-size:48px;line-height:1"><span id="hPlace">1°</span><span class="muted" style="font-size:22px"> su 6</span></div>' +
+    '<div class="mono" style="display:flex;justify-content:space-between;font-size:15px"><span id="hTime">0:00.0</span><span><span id="hKmh">0</span> km/h</span></div>' +
+    '<div class="muted" style="font-size:13px">Mancano <span id="hLeft">0</span> m</div></div>' +
+    '<div class="panel" style="padding:14px 16px;display:flex;flex-direction:column;gap:10px">' +
+    '<div style="display:flex;align-items:center;gap:12px"><div style="font-size:13px;width:90px">Fiato</div><div class="bar" style="flex:1;height:14px;border-radius:7px"><div id="hStam" style="width:100%;background:#86C98A"></div></div><div class="mono" id="hStamN" style="font-size:13px;width:36px;text-align:right">100</div></div>' +
+    '<div id="mini" style="position:relative;height:18px;border-radius:9px;background:var(--bg)"></div>' +
+    '<div style="display:flex;gap:8px">' + paces +
+    '<button class="lanebtn" data-act="laneUp" aria-label="Corsia esterna"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button>' +
+    '<button class="lanebtn" data-act="laneDown" aria-label="Corsia interna"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>' +
+    '<div class="muted" id="hPower" style="font-size:12px"></div></div>' +
+    '<div class="panel" id="live" style="padding:12px 14px;display:flex;flex-direction:column;gap:3px"></div></div></div>';
+}
+
+function updateRace() {
+  var race = S.race; if (!race || S.screen !== 'race') return;
+  var me = race.racers[0], cam = me.pos, px = cam * PX;
+  document.getElementById('turf').style.backgroundPosition = (-(px % 240)) + 'px 0';
+  document.getElementById('rail').style.backgroundPosition = (-(px % 40)) + 'px 0';
+  document.getElementById('railNear').style.backgroundPosition = (-((px * 1.15) % 48)) + 'px 0';
+  document.getElementById('hills').style.transform = 'translateX(' + (-((px * 0.12) % 1240)) + 'px)';
+  document.getElementById('stands').style.transform = 'translateX(' + (-((px * 0.35) % 800)) + 'px)';
+  var html = '';
+  var m0 = Math.floor((cam - 60) / 100) * 100;
+  for (var m = m0; m <= cam + 80; m += 100) {
+    if (m > 0 && m < race.dist) {
+      html += '<div class="abs" style="left:' + (NOSE_X + (m - cam) * PX - 20) + 'px;top:150px;width:40px;height:64px;display:flex;flex-direction:column;align-items:center">' +
+        '<div class="mono" style="padding:2px 6px;background:#FAFAF6;color:#1C1C1C;font-size:12px;border:1px solid #333">' + (race.dist - m) + '</div>' +
+        '<div style="width:4px;flex:1;background:repeating-linear-gradient(#C8452F 0 8px,#FAFAF6 8px 16px)"></div></div>';
+    }
+  }
+  var sx = NOSE_X + (0 - cam) * PX - 10;
+  if (sx > -80 && sx < 1260) {
+    html += '<div class="abs" style="left:' + sx + 'px;top:226px;width:70px;height:290px;display:flex;flex-direction:column">';
+    for (var g = 0; g < 6; g++) html += '<div style="height:44px;border:3px solid #E8E8E2;border-right-width:6px;background:rgba(40,48,58,.35)"></div>';
+    html += '</div>';
+  }
+  var fx = NOSE_X + (race.dist - cam) * PX;
+  if (fx > -60 && fx < 1300) {
+    html += '<div class="abs" style="left:' + fx + 'px;top:226px;width:4px;height:294px;background:#FAFAF6"></div>' +
+      '<div class="abs" style="left:' + (fx - 28) + 'px;top:120px;width:60px;height:100px;display:flex;flex-direction:column;align-items:center">' +
+      '<div style="width:46px;height:46px;border-radius:23px;background:#C8452F;border:4px solid #FAFAF6;display:flex;align-items:center;justify-content:center;color:#FAFAF6;font-size:9px;font-weight:600">ARRIVO</div>' +
+      '<div style="width:6px;flex:1;background:#FAFAF6"></div></div>';
+  }
+  race.items.forEach(function (it) {
+    if (it.taken) return;
+    var x = NOSE_X + (it.m - cam) * PX - 17;
+    if (x > -40 && x < 1260) html += '<div class="abs" style="left:' + x + 'px;top:' + (262 + it.lane * 44 - 30) + 'px;filter:drop-shadow(0 3px 2px rgba(0,0,0,.35))">' + ICONS[it.kind] + '</div>';
+  });
+  var racing = race.count <= 0;
+  race.racers.slice().sort(function (a, b) { return a.lane - b.lane; }).forEach(function (r) {
+    var size = Math.round(122 + r.lane * 11);
+    var hh = size * 110 / 160;
+    var x = Math.round(NOSE_X + (r.pos - cam) * PX - size * 0.97);
+    if (x < -size || x > 1260) return;
+    var y = Math.round(266 + r.lane * 44 - hh * 0.96);
+    var frame = racing && r.speed > 1 ? Math.floor(r.phase * 4) % 4 : -1;
+    html += '<div class="abs" style="left:' + x + 'px;top:' + y + 'px;width:' + size + 'px">';
+    if (r.isPlayer) html += '<div class="abs" style="left:' + Math.round(size * 0.6) + 'px;top:-22px;display:flex;flex-direction:column;align-items:center"><div style="padding:1px 6px;border-radius:4px;background:#D4AF37;color:#1C1606;font-size:11px;font-weight:600">TU</div><svg width="12" height="7" viewBox="0 0 12 7"><path d="M0 0h12L6 7z" fill="#D4AF37"/></svg></div>';
+    html += horseSVG({ coat: r.coat, blaze: r.blaze, silk: r.silk, cap: r.cap, num: r.num, frame: frame, size: size, jockey: true }) + '</div>';
+  });
+  document.getElementById('layer').innerHTML = html;
+
+  var ov = '';
+  if (!race.done && race.t < race.toastUntil) ov += '<div class="abs" style="top:16px;left:50%;transform:translateX(-50%);padding:8px 18px;border-radius:999px;background:rgba(15,42,33,.92);font-size:16px;font-weight:600;border:1px solid #D4AF37">' + race.toast + '</div>';
+  if (race.count > 0) {
+    var ct = Math.ceil(race.count) > 3 ? 'Al cancello' : String(Math.max(1, Math.ceil(race.count)));
+    ov += '<div class="abs" style="inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:rgba(15,42,33,.35)"><div class="serif" style="font-size:120px;color:#FAFAF6;text-shadow:0 4px 16px rgba(0,0,0,.5)">' + ct + '</div>' +
+      '<div style="padding:6px 14px;border-radius:8px;background:rgba(15,42,33,.85);font-size:15px">' + LEVELS[race.lvl - 1].name + ', ' + race.dist + ' m</div></div>';
+  }
+  document.getElementById('overlay').innerHTML = ov;
+
+  var order = orderOf(race);
+  document.getElementById('hPlace').textContent = (order.indexOf(me) + 1) + '°';
+  document.getElementById('hTime').textContent = fmtTime(me.finished ? me.time : race.t);
+  document.getElementById('hKmh').textContent = Math.round(me.speed * 3.6);
+  document.getElementById('hLeft').textContent = Math.max(0, Math.ceil(race.dist - me.pos));
+  var st = Math.round(me.stam), sb = document.getElementById('hStam');
+  sb.style.width = st + '%'; sb.style.background = me.stam > 40 ? '#86C98A' : (me.stam > 15 ? '#E9C46A' : '#E8735A');
+  document.getElementById('hStamN').textContent = st;
+  document.getElementById('mini').innerHTML = race.racers.map(function (r) {
+    var s = r.isPlayer ? 14 : 12;
+    return '<div class="abs" style="top:' + (r.isPlayer ? 2 : 3) + 'px;left:' + clamp(r.pos / race.dist * 100, 0, 100) + '%;width:' + s + 'px;height:' + s + 'px;margin-left:-6px;border-radius:50%;background:' + r.silk + ';border:2px solid ' + (r.isPlayer ? '#D4AF37' : '#0F2A21') + '"></div>';
+  }).join('');
+  for (var i = 0; i < 3; i++) {
+    var b = document.getElementById('pace' + i);
+    b.classList.toggle('on', me.pace === i);
+    b.disabled = race.done || me.finished;
+  }
+  var pw = [];
+  if (race.t < race.boostUntil) pw.push('Zolletta attiva ' + Math.ceil((race.boostUntil - race.t) / 3) + ' s');
+  if (race.t < race.ironUntil) pw.push('Ferro d’oro attivo ' + Math.ceil((race.ironUntil - race.t) / 3) + ' s');
+  document.getElementById('hPower').textContent = pw.length ? pw.join('. ') : 'Prendi carote, zollette e ferri d’oro cambiando corsia con le frecce.';
+  document.getElementById('live').innerHTML = order.map(function (r, i) {
+    return '<div style="display:grid;grid-template-columns:22px 16px minmax(0,1fr);gap:8px;align-items:center;font-size:13px;padding:2px 4px;border-radius:4px;background:' + (r.isPlayer ? 'var(--line)' : 'transparent') + '">' +
+      '<span class="mono gold">' + (i + 1) + '</span><span style="width:14px;height:14px;border-radius:3px;background:' + r.silk + ';border:2px solid ' + r.cap + '"></span>' +
+      '<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(r.name) + '</span></div>';
+  }).join('');
+}
+
+function showResults() {
+  var race = S.race, el = document.getElementById('results');
+  var rows = race.results.map(function (r) {
+    return '<div style="display:grid;grid-template-columns:40px 26px minmax(0,1fr) 90px;gap:10px;align-items:center;padding:7px 8px;border-top:1px solid var(--line);background:' + (r.isPlayer ? 'var(--line)' : 'transparent') + ';font-size:15px">' +
+      '<span class="serif gold" style="font-size:19px">' + r.place + '</span><span class="sw" style="background:' + r.silk + ';border-color:' + r.cap + '"></span>' +
+      '<span>' + esc(r.name) + ' <span class="muted" style="font-size:13px">' + r.stable + '</span></span><span class="mono" style="text-align:right;font-size:14px">' + r.time + '</span></div>';
+  }).join('');
+  el.innerHTML = '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(15,42,33,.82)">' +
+    '<div class="panel" style="width:620px;padding:26px;border-radius:14px;border-color:#D4AF37;display:flex;flex-direction:column;gap:12px">' +
+    '<div class="gold" style="font-size:12px;letter-spacing:.12em">ORDINE D’ARRIVO</div><h2 class="serif" style="margin:0;font-size:34px">' + race.title + '</h2>' +
+    '<div style="font-size:15px;color:var(--note)">' + race.note + '</div><div>' + rows + '</div>' +
+    '<button class="primary" data-act="closeRace" style="min-height:50px;border-radius:10px;font-size:16px">Torna in scuderia</button></div></div>';
+  el.style.display = 'block';
+  var btn = el.querySelector('button'); if (btn) btn.focus();
+}
+
+function render() {
+  var body = '';
+  if (S.screen === 'stable') body = stableHTML();
+  else if (S.screen === 'market') body = marketHTML();
+  else if (S.screen === 'races') body = racesHTML();
+  else if (S.screen === 'standings') body = standingsHTML();
+  else if (S.screen === 'race') body = raceHTML();
+  app.innerHTML = topHTML() + body;
+  if (S.screen === 'race') updateRace();
+}
+
+app.addEventListener('click', function (e) {
+  var b = e.target.closest('[data-act]');
+  if (!b || b.disabled) return;
+  var f = A[b.getAttribute('data-act')];
+  if (f) f(b.getAttribute('data-arg'));
+});
+document.addEventListener('keydown', function (e) {
+  if (S.screen !== 'race' || !S.race) return;
+  var k = e.key;
+  if (k === 'ArrowUp' || k === 'w' || k === 'W') { e.preventDefault(); moveLane(-1); }
+  else if (k === 'ArrowDown' || k === 's' || k === 'S') { e.preventDefault(); moveLane(1); }
+  else if (k === '1') setPace(0);
+  else if (k === '2') setPace(1);
+  else if (k === '3') setPace(2);
+});
+
+function fit() {
+  var sc = Math.min(1, window.innerWidth / 1280, window.innerHeight / 840);
+  var w = document.getElementById('wrap');
+  w.style.transform = 'scale(' + sc + ')';
+  w.style.marginBottom = (840 * sc - 840) + 'px';
+}
+window.addEventListener('resize', fit);
+fit();
+render();
+setInterval(tick, 50);
+</script>
+</body>
+</html>
