@@ -72,8 +72,8 @@ var JOCKEYS = [
   { name: 'Campione', cost: 900, bonus: 1.04, save: 0.88, desc: 'Velocità +4%, fiato risparmiato' }
 ];
 var NAMES = ['Vento di Maremma', 'Fulmine Nero', 'Stella d’Agosto', 'Re del Palio', 'Bora', 'Lampo Rosso', 'Sogno Ribelle', 'Gran Visir', 'Ombra Lunga', 'Selvaggia', 'Duca Bianco', 'Maestrale', 'Notte di Siena', 'Furia', 'Brezza Marina', 'Capitano', 'Altair', 'Zefiro', 'Orgoglio', 'Scintilla', 'Libeccio', 'Principe Azzurro', 'Luna Piena', 'Tempesta', 'Barone Rosso', 'Aria di Festa', 'Corsaro', 'Dama di Cuori', 'Fiume Antico', 'Sirocco'];
-var COATS = ['baio', 'baio_scuro', 'sauro', 'morello', 'grigio', 'palomino'];
-var COAT_LABEL = { baio: 'Baio', baio_scuro: 'Baio scuro', sauro: 'Sauro', morello: 'Morello', grigio: 'Grigio', palomino: 'Palomino' };
+var COATS = ['baio', 'baio_scuro', 'sauro', 'sauro', 'morello', 'grigio', 'palomino', 'pezzato_nero', 'pezzato_sauro'];
+var COAT_LABEL = { baio: 'Baio', baio_scuro: 'Baio scuro', sauro: 'Sauro', morello: 'Morello', grigio: 'Grigio', palomino: 'Palomino', pezzato_nero: 'Pezzato bianco e nero', pezzato_sauro: 'Pezzato sauro' };
 var POINTS = [10, 6, 4, 3, 2, 1];
 var PRIZE_SHARE = [1, 0.4, 0.2, 0.1, 0, 0];
 var DIFF = { facile: -6, normale: 0, difficile: 6 };
@@ -96,8 +96,17 @@ var HCOATS = {
   sauro: { body: '#B4652F', shade: '#86451C', leg: '#A9592A', legDark: '#7A3E18', mane: '#C9783C' },
   morello: { body: '#2A2628', shade: '#141213', leg: '#1A1718', legDark: '#0E0D0D', mane: '#0C0B0B' },
   grigio: { body: '#BAB6AF', shade: '#8E8981', leg: '#7A756E', legDark: '#5E5A54', mane: '#E9E6E0' },
-  palomino: { body: '#D2A65C', shade: '#A97E3C', leg: '#C59650', legDark: '#93703A', mane: '#F1E6C8' }
+  palomino: { body: '#D2A65C', shade: '#A97E3C', leg: '#C59650', legDark: '#93703A', mane: '#F1E6C8' },
+  pezzato_nero: { body: '#ECE9E3', shade: '#B9B4AA', leg: '#E8E5DF', legDark: '#D9D5CD', mane: '#DCD8D0', patch: '#161415' },
+  pezzato_sauro: { body: '#EFEAE2', shade: '#BDB3A6', leg: '#3A2A20', legDark: '#2A1E18', mane: '#8E3416', patch: '#9A4E22' }
 };
+var PHOTOS = { pezzato_nero: 'img/pezzato-nero.jpg', pezzato_sauro: 'img/pezzato-sauro.jpg', baio_scuro: 'img/baio-scuro.jpg' };
+function photoOf(h) { if (h.coat === 'sauro') return h.blaze ? 'img/sauro-lista.jpg' : 'img/sauro.jpg'; return PHOTOS[h.coat] || ''; }
+function portrait(h, w, ht, svgSize) {
+  var ph = photoOf(h);
+  if (ph) return '<img src="' + ph + '" alt="' + esc(h.name || 'Cavallo') + '" style="width:' + w + ';height:' + ht + ';object-fit:cover;object-position:center 18%;display:block;border-radius:8px">';
+  return horseSVG({ coat: h.coat, blaze: h.blaze, size: svgSize, frame: -1 });
+}
 var POSES = [
   { nf: [106, 68, 124, 86, 138, 94], ff: [100, 68, 116, 88, 126, 100], nh: [46, 66, 30, 86, 16, 94], fh: [52, 66, 40, 88, 28, 100], bob: 0 },
   { nf: [106, 68, 116, 88, 120, 102], ff: [100, 68, 104, 88, 100, 102], nh: [46, 66, 42, 88, 36, 102], fh: [52, 66, 56, 88, 54, 102], bob: -2 },
@@ -123,6 +132,7 @@ function horseSVG(o) {
   s += legSVG(p.fh, c.shade, c.legDark, 10, '#141414') + legSVG(p.ff, c.shade, c.legDark, 8, '#141414');
   s += '<path d="' + (frame < 0 ? TAIL_STAND : TAIL_RUN) + '" fill="' + c.mane + '"/>';
   s += '<path d="M28 52 C26 42 34 36 48 36 L92 38 C100 30 110 18 122 12 C128 8 134 8 138 12 L156 30 C159 34 156 39 151 39 L140 36 C134 34 128 32 124 34 C120 42 116 50 114 58 C112 68 104 74 94 74 L52 74 C40 74 30 66 28 52 Z" fill="' + c.body + '"/>';
+  if (c.patch) s += '<path d="M100 38 C106 28 114 18 122 12 C128 8 134 8 138 12 L156 30 C159 34 156 39 151 39 L140 36 C134 34 128 32 124 34 C120 42 116 48 112 52 C108 46 104 42 100 38 Z" fill="' + c.patch + '"/><path d="M28 52 C26 42 34 36 48 36 L62 37 C65 48 60 60 52 72 C40 72 31 64 28 52 Z" fill="' + c.patch + '"/><ellipse cx="80" cy="60" rx="10" ry="7" fill="' + c.patch + '"/>';
   s += '<path d="M54 72 C68 75 84 75 96 71" stroke="' + c.shade + '" stroke-width="4" fill="none" opacity="0.7" stroke-linecap="round"/>';
   s += '<path d="M40 40 C58 36 78 37 92 40" stroke="#fff" stroke-width="3" fill="none" opacity="0.16" stroke-linecap="round"/>';
   s += '<path d="M96 44 C104 52 105 63 99 72" stroke="' + c.shade + '" stroke-width="1.6" fill="none" opacity="0.8"/>';
@@ -164,7 +174,7 @@ function genMarket(unlocked) {
 }
 function freshCareer() {
   var starter = makeHorse(1, 38);
-  starter.name = 'Vento di Maremma'; starter.coat = 'baio';
+  starter.name = 'Vento di Maremma'; starter.coat = 'sauro'; starter.blaze = true;
   var stables = { me: 0 }, swins = { me: 0 };
   RIVALS.forEach(function (r) { stables[r.id] = 0; swins[r.id] = 0; });
   return { money: 6000, week: 1, nid: 2, horses: [starter], selId: 1, market: genMarket(1), unlocked: 1, best: {}, records: {}, stables: stables, swins: swins, career: { starts: 0, wins: 0, earn: 0 }, silk: SILKS[0], cap: CAPS[0], difficulty: 'normale' };
@@ -502,7 +512,7 @@ function stableHTML() {
     var busy = x.raced || x.trained;
     var st = x.raced ? 'Ha corso questa settimana' : (x.trained ? 'Allenato questa settimana' : 'Disponibile');
     return '<button class="sel' + (h && x.id === h.id ? ' on' : '') + '" data-act="selHorse" data-arg="' + x.id + '" style="display:flex;align-items:center;gap:12px;padding:10px 12px">' +
-      horseSVG({ coat: x.coat, blaze: x.blaze, size: 96, frame: -1 }) +
+      '<div style="width:96px;height:66px;flex:none;display:flex;align-items:center;justify-content:center">' + portrait(x, '96px', '66px', 96) + '</div>' +
       '<div style="flex:1;display:flex;flex-direction:column;gap:3px"><div style="font-size:16px;font-weight:600">' + esc(x.name) + '</div>' +
       '<div class="muted" style="font-size:13px">' + COAT_LABEL[x.coat] + ', valore ' + rating(x) + '</div>' +
       '<div style="font-size:12px;color:' + (busy ? '#E9D9A6' : '#86C98A') + '">' + st + '</div></div>' +
@@ -530,7 +540,7 @@ function stableHTML() {
     '<div class="panel" style="padding:14px;border-radius:10px;display:flex;flex-direction:column;gap:10px"><div class="muted" style="font-size:13px;line-height:1.45">Fine settimana. Paghi ' + euro(150 * S.horses.length) + ' di mantenimento. I cavalli recuperano energia e il mercato cambia.</div>' +
     '<button class="primary" data-act="nextWeek" style="min-height:46px;font-size:15px">Passa alla settimana ' + (S.week + 1) + '</button></div></div>' +
     '<div class="panel scroll" style="padding:24px;display:flex;flex-direction:column;gap:18px">' +
-    '<div style="display:flex;gap:28px;align-items:center"><div class="horsebox" style="width:400px;height:275px;flex:none">' + horseSVG({ coat: h.coat, blaze: h.blaze, size: 380, frame: -1 }) + '</div>' +
+    '<div style="display:flex;gap:28px;align-items:center"><div class="horsebox" style="width:400px;height:275px;flex:none">' + portrait(h, '400px', '275px', 380) + '</div>' +
     '<div style="flex:1;display:flex;flex-direction:column;gap:10px"><div class="gold" style="font-size:12px;letter-spacing:.12em">VALORE ' + rating(h) + '</div>' +
     '<h2 class="serif" style="margin:0;font-size:40px;line-height:1.05">' + esc(h.name) + '</h2>' +
     '<div class="muted" style="font-size:15px">' + COAT_LABEL[h.coat] + '. ' + h.starts + ' corse, ' + h.wins + ' vittorie, ' + euro(h.earnings) + ' vinti.</div>' +
@@ -544,7 +554,7 @@ function stableHTML() {
 function marketHTML() {
   var cards = S.market.map(function (m, i) {
     var p = price(m), off = S.money < p || S.horses.length >= 6;
-    return '<div class="panel" style="padding:16px;display:flex;flex-direction:column;gap:10px"><div class="horsebox" style="height:180px">' + horseSVG({ coat: m.coat, blaze: m.blaze, size: 250, frame: -1 }) + '</div>' +
+    return '<div class="panel" style="padding:16px;display:flex;flex-direction:column;gap:10px"><div class="horsebox" style="height:180px">' + portrait(m, '100%', '180px', 250) + '</div>' +
       '<div class="serif" style="font-size:24px">' + esc(m.name) + '</div><div class="muted" style="font-size:13px">' + COAT_LABEL[m.coat] + ', valore ' + rating(m) + '</div>' + bars3(m, 6) +
       '<div style="margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:10px"><div class="mono gold" style="font-size:18px">' + euro(p) + '</div>' +
       '<button class="primary" data-act="buy" data-arg="' + i + '" style="min-height:44px;padding:0 20px;font-size:15px"' + (off ? ' disabled' : '') + '>Compra</button></div></div>';
