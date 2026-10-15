@@ -49,7 +49,7 @@ td{padding:12px 6px;border-top:1px solid var(--line)}
 <body>
 <div id="wrap"><div id="app"></div></div>
 <script type="importmap">{"imports":{"three":"./lib/three/three.module.min.js"}}</script>
-<script type="module" src="race3d.js?v=7"></script>
+<script type="module" src="race3d.js?v=8"></script>
 <script>
 'use strict';
 var KEY = 'gran-galoppo-v1';
@@ -276,7 +276,7 @@ function updateHorse(id, fn) { S.horses = S.horses.map(function (h) { return h.i
 function commit() { save(); render(); }
 var A = {
   tab: function (t) { if (S.screen === 'race') return; sfx('click'); if (t === 'careers' && !S.form) A.resetForm(); S.screen = t; S.msg = ''; render(); },
-  mute: function () { S.muted = !S.muted; if (S.muted) crowdStop(); renderTop(); },
+  mute: function () { S.muted = !S.muted; if (S.muted) { crowdStop(); stopComm(); } renderTop(); },
   selHorse: function (id) { sfx('click'); S.selId = +id; S.msg = ''; render(); },
   train: function (stat) {
     var h = selHorse(); var labels = { vel: 'la velocità', res: 'la resistenza', acc: 'l’accelerazione' };
@@ -430,7 +430,8 @@ var A = {
   laneLeft: function () { steer(-1); },
   laneRight: function () { steer(1); },
   camera: function () { if (window.Race3D) { var l = Race3D.cycleCamera(); var b = document.getElementById('camBtn'); if (b) b.innerHTML = l + '<small>camera, tasto C</small>'; } },
-  closeRace: function () { var sp = S.race && S.race.spectator; crowdStop(); if (window.Race3D) Race3D.stop(); S.screen = sp ? 'betting' : 'stable'; S.race = null; render(); }
+  toggleComm: function () { COMM.on = !COMM.on; try { localStorage.setItem('gg-telecronaca', COMM.on ? 'on' : 'off'); } catch (e) {} if (!COMM.on) { stopComm(); var el = document.getElementById('comm'); if (el) el.style.opacity = 0; } var b = document.getElementById('commBtn'); if (b) b.textContent = 'Telecronaca ' + (COMM.on ? 'sì' : 'no') + ' (T)'; },
+  closeRace: function () { stopComm(); var sp = S.race && S.race.spectator; crowdStop(); if (window.Race3D) Race3D.stop(); S.screen = sp ? 'betting' : 'stable'; S.race = null; render(); }
 };
 
 function firstFreeSlot() {
@@ -653,13 +654,135 @@ function settleBets(b, orderIdx) {
   S.money += won;
   var n = function (i) { return b.runners[i].num; };
   var official = 'Vincente ' + n(w) + ' quota ' + div.V.toFixed(2) + '. Piazzati ' + n(w) + ' a ' + div.P1.toFixed(2) + ' e ' + n(s2) + ' a ' + div.P2.toFixed(2) + '. Accoppiata ' + n(w) + ' + ' + n(s2) + ' a ' + div.A.toFixed(2) + '. Tris ' + n(w) + ' > ' + n(s2) + ' > ' + n(s3) + ' a ' + div.T.toFixed(2) + '.';
-  return { rows: rows, won: won, staked: staked, official: official };
+  return { rows: rows, won: won, staked: staked, official: official, divV: div.V };
 }
 function openBook(lvl, mode) {
   if (S.book && S.book.week === S.week && S.book.lvl === lvl && S.book.mode === mode && (mode === 'watch' || S.book.runners.some(function (r) { return r.isPlayer && r.horseId === selHorse().id; }))) return;
   if (S.book) refundBook('Hai cambiato corsa.');
   S.book = makeBook(lvl, mode);
   S.slip = { type: 'V', sel: [], amount: S.slip ? S.slip.amount : 10 };
+}
+
+/* ---------- Telecronaca ---------- */
+var COMM = { on: true, voice: null, c: null };
+try { COMM.on = localStorage.getItem('gg-telecronaca') !== 'off'; } catch (e) {}
+var ORD = ['primo', 'secondo', 'terzo', 'quarto', 'quinto', 'sesto'];
+function pickVoice() {
+  if (!window.speechSynthesis) return null;
+  var vs = speechSynthesis.getVoices().filter(function (v) { return /^it/i.test(v.lang); });
+  if (!vs.length) return null;
+  var pref = ['Google', 'Luca', 'Diego', 'Cosimo', 'Federica', 'Alice', 'Paola', 'Elsa', 'Isabella'];
+  for (var i = 0; i < pref.length; i++) { var f = vs.filter(function (v) { return v.name.indexOf(pref[i]) >= 0; })[0]; if (f) return f; }
+  return vs[0];
+}
+if (window.speechSynthesis) { COMM.voice = pickVoice(); speechSynthesis.onvoiceschanged = function () { COMM.voice = pickVoice(); }; }
+function subtitle(text) {
+  var el = document.getElementById('comm'); if (!el) return;
+  el.textContent = text; el.style.opacity = 1;
+  clearTimeout(COMM.subT); COMM.subT = setTimeout(function () { el.style.opacity = 0; }, 5000);
+}
+function say(text, prio, hot) {
+  if (COMM.c) COMM.c.lines.push(text);
+  if (!COMM.on) return;
+  subtitle(text);
+  if (S.muted || !window.speechSynthesis) return;
+  var ss = window.speechSynthesis;
+  if (prio >= 3) ss.cancel();
+  else if (prio === 2) { if (ss.pending) return; }
+  else if (ss.speaking || ss.pending) return;
+  var u = new SpeechSynthesisUtterance(text);
+  u.lang = 'it-IT'; if (COMM.voice) u.voice = COMM.voice;
+  u.rate = hot ? 1.3 : 1.12; u.pitch = hot ? 1.15 : 1.0;
+  ss.speak(u);
+}
+function stopComm() { try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {} }
+function hn(r) { return 'il numero ' + r.num + ', ' + r.name; }
+function aD(n) { return (/^[aeiouAEIOU]/.test(n) ? 'ad ' : 'a ') + n; }
+function cap1(t) { return t.charAt(0).toUpperCase() + t.slice(1); }
+function marginText(m) {
+  var L = m / 2.4;
+  if (L < 0.08) return 'di un naso';
+  if (L < 0.2) return 'di corta testa';
+  if (L < 0.35) return 'di una testa';
+  if (L < 0.6) return 'di un’incollatura';
+  if (L < 0.8) return 'di mezza lunghezza';
+  if (L < 1.15) return 'di una lunghezza';
+  if (L < 1.8) return 'di una lunghezza e mezza';
+  var n = Math.round(L);
+  return n >= 8 ? 'di molte lunghezze' : 'di ' + ['', '', 'due', 'tre', 'quattro', 'cinque', 'sei', 'sette'][n] + ' lunghezze';
+}
+function spokenTime(t) {
+  var m = Math.floor(t / 60), sec = Math.floor(t - m * 60), d = Math.floor((t * 10) % 10);
+  return (m ? (m === 1 ? 'un minuto, ' : m + ' minuti, ') : '') + (sec === 1 ? 'un secondo' : sec + ' secondi') + ' e ' + d + (d === 1 ? ' decimo' : ' decimi');
+}
+function commStart(race) {
+  var L = LEVELS[race.lvl - 1], b = S.book, me = racePlayer(race), fav = null;
+  if (b) { var fi = 0; b.perc.forEach(function (p, i) { if (p > b.perc[fi]) fi = i; }); fav = race.racers.filter(function (r) { return r.idx === fi; })[0]; }
+  COMM.c = { lines: [], said: {}, marks: {}, leader: null, cand: null, candT: 0, lastLead: 0 };
+  var t = 'Buongiorno dall’' + L.track + '. Si corre il ' + L.name + ', ' + L.dist + ' metri in pista erbosa, sei partenti.';
+  if (fav) t += ' Il favorito del totalizzatore è ' + hn(fav) + ', a quota ' + oddsV(b, fav.idx).toFixed(2).replace('.', ',') + '.';
+  if (me) t += ' Occhi puntati sul numero ' + me.num + ', ' + me.name + ', il nostro cavallo.';
+  t += ' I cavalli entrano nelle gabbie.';
+  say(t, 2);
+}
+function commTick(race) {
+  var c = COMM.c; if (!c || race.count > 0 || race.done) return;
+  var order = orderOf(race), lead = order[0], second = order[1], third = order[2], me = racePlayer(race);
+  var frac = lead.pos / race.dist, left = race.dist - lead.pos, gap = lead.pos - second.pos, now = performance.now();
+  if (!c.said.start && race.t > 3) {
+    c.said.start = 1; c.leader = lead;
+    say('Buona partenza per tutti. ' + cap1(hn(lead)) + ' prende subito la testa, ' + second.name + ' alle sue spalle.', 2);
+    return;
+  }
+  if (!c.leader) return;
+  if (lead !== c.leader && !lead.finished) {
+    if (c.cand !== lead) { c.cand = lead; c.candT = race.t; }
+    else if (race.t - c.candT > (frac < 0.88 ? 1.2 : 0.4)) {
+      var prev = c.leader; c.leader = lead;
+      if (frac >= 0.88) { say('Sorpasso! ' + lead.name + ' supera ' + prev.name + ' e passa al comando!', 3, true); return; }
+      if (now - c.lastLead > 4500) { c.lastLead = now; say('Cambio al comando! Adesso conduce ' + hn(lead) + '.', 2); return; }
+    }
+  } else c.cand = null;
+  var marks = [0.3, 0.55];
+  for (var i = 0; i < marks.length; i++) {
+    var f = marks[i];
+    if (frac >= f && !c.marks[f]) {
+      c.marks[f] = 1;
+      var m50 = Math.round(left / 50) * 50;
+      var t = 'Ai ' + m50 + ' metri dal traguardo conduce ' + hn(lead) + (gap > 7 ? ', con un buon vantaggio,' : '') + ' davanti ' + aD(second.name) + ', poi ' + third.name + '.';
+      if (me) { var pi = order.indexOf(me); t += pi <= 2 ? (pi === 0 ? ' Ottima corsa del nostro ' + me.name + '.' : ' ' + me.name + ' è ben piazzato.') : ' ' + me.name + ' è ' + ORD[pi] + ', deve recuperare.'; }
+      say(t, 2); return;
+    }
+  }
+  if (me && !me.finished) {
+    if (me.pace === 2 && !c.sprint && frac < 0.97) { c.sprint = 1; say(me.name + ' viene chiamato allo sforzo!', 1); return; }
+    if (me.pace !== 2) c.sprint = 0;
+    if (me.stam < 12 && !c.said.tired && frac < 0.9) { c.said.tired = 1; say('Attenzione, ' + me.name + ' è in riserva, fatica a tenere il passo.', 1); return; }
+  }
+  if (frac >= 0.78 && !c.said.straight) {
+    c.said.straight = 1;
+    say('Entrano in dirittura d’arrivo! ' + lead.name + ' ancora davanti, ' + second.name + ' prova a rimontare!', 2, true); return;
+  }
+  if (left <= 130 && !c.said.final) {
+    c.said.final = 1;
+    say(gap < 3 ? 'Testa a testa tra ' + lead.name + ' e ' + second.name + '! Che finale!' : (gap > 12 ? lead.name + ' se ne va da solo, è irraggiungibile!' : 'Ultimi cento metri! ' + lead.name + ' resiste, ' + second.name + ' non molla!'), 3, true);
+    return;
+  }
+  if (lead.finished && !c.said.win) {
+    c.said.win = 1;
+    var close = second.finished ? (second.time - lead.time) * second.speed : (lead.pos - second.pos);
+    say((close < 0.8 ? 'Arrivo al fotofinish! ' : '') + 'Vince ' + hn(lead) + '!' + (lead.isPlayer ? ' Vittoria per i nostri colori!' : ''), 3, true);
+  }
+}
+function commFinish(race, order) {
+  if (!COMM.c) return;
+  var w = order[0], s2 = order[1], s3 = order[2], me = racePlayer(race);
+  var m = s2.finished && w.finished ? (s2.time - w.time) * Math.max(8, s2.speed) : 30;
+  var t = 'Ordine d’arrivo. Primo ' + hn(w) + ', ' + marginText(m) + ' su ' + s2.name + ', terzo ' + s3.name + '. Tempo ' + spokenTime(w.time) + '.';
+  if (me) { var pi = order.indexOf(me); t += pi === 0 ? ' Grande vittoria per ' + S.stableName + '!' : ' Il nostro ' + me.name + ' chiude ' + ORD[pi] + '.'; }
+  if (race.bet && race.bet.divV) t += ' Il vincente paga ' + race.bet.divV.toFixed(2).replace('.', ',') + '.';
+  if (race.bet && race.bet.won > 0) t += ' Complimenti, le tue scommesse rendono ' + Math.round(race.bet.won) + ' euro.';
+  say(t, 2);
 }
 
 function startRace() {
@@ -690,7 +813,9 @@ function startRace() {
   }
   S.race = { lvl: lv.id, dist: lv.dist, t: 0, count: 3.6, racers: racers, items: items, boostUntil: 0, ironUntil: 0, done: false, results: null, toast: '', toastUntil: 0, playerDone: false, playerDoneT: 0, spectator: !run, rate: DT / 0.05 };
   S.screen = 'race'; lastCount = 4;
+  if (COMM.on) S.race.count = 9;
   save(); sfx('call'); render();
+  commStart(S.race);
 }
 function racePlayer(race) { return race.racers[0] && race.racers[0].isPlayer ? race.racers[0] : null; }
 function raceFocus(race) {
@@ -713,7 +838,7 @@ function tick() {
     race.count -= 0.05;
     var c = Math.ceil(race.count);
     if (c !== lastCount && c <= 3) { lastCount = c; if (c > 0) sfx('beep'); }
-    if (race.count <= 0) { sfx('go'); crowdStart(); }
+    if (race.count <= 0) { sfx('go'); crowdStart(); say('Partiti!', 3, true); }
     updateRace(); return;
   }
   var me = racePlayer(race), focus = raceFocus(race);
@@ -730,6 +855,7 @@ function tick() {
         if (it.kind === 'zolletta') { race.boostUntil = race.t + 10; race.toast = 'Zolletta di zucchero. Scatto!'; }
         if (it.kind === 'ferro') { race.ironUntil = race.t + 15; race.toast = 'Ferro d’oro. Fiato illimitato'; }
         race.toastUntil = race.t + 4;
+        say(it.kind === 'zolletta' ? me.name + ' trova un nuovo spunto!' : (it.kind === 'ferro' ? me.name + ' sembra inesauribile!' : me.name + ' riprende fiato.'), 1);
       }
     });
     var doneNow = me ? me.finished : race.racers.some(function (r) { return r.finished; });
@@ -744,6 +870,7 @@ function tick() {
     thump(0, 0.22); thump(per * 0.14, 0.18); thump(per * 0.28, 0.26);
   }
   if (!race.playerDone) crowdLevel(0.015 + 0.06 * Math.pow(focus.pos / race.dist, 2));
+  commTick(race);
   var allDone = race.racers.every(function (r) { return r.finished; });
   if (allDone || (race.playerDone && race.t - race.playerDoneT > 40)) { finishRace(race); return; }
   updateRace();
@@ -782,7 +909,8 @@ function finishRace(race) {
   if (S.book && S.book.bets.length) {
     race.bet = settleBets(S.book, order.map(function (r) { return r.idx; }));
   } else if (S.book) {
-    race.bet = { rows: [], won: 0, staked: 0, official: settleBets(S.book, order.map(function (r) { return r.idx; })).official };
+    var sb = settleBets(S.book, order.map(function (r) { return r.idx; }));
+    race.bet = { rows: [], won: 0, staked: 0, official: sb.official, divV: sb.divV };
   }
   S.book = null;
   race.done = true;
@@ -791,6 +919,7 @@ function finishRace(race) {
   setTimeout(crowdStop, 2500);
   if (place === 1) sfx('fanfare'); else if (prize > 0 || (race.bet && race.bet.won > 0)) sfx('coin');
   save(); renderTop(); updateRace(); showResults();
+  commFinish(race, order);
 }
 
 /* ---------- Disegno ---------- */
@@ -808,7 +937,7 @@ function topHTML() {
   var inRace = S.screen === 'race';
   var t = '<div class="panel top" id="top"><div style="display:flex;align-items:center;gap:12px">' +
     '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 20V11a6 6 0 0 1 12 0v9"/><path d="M4 20h4M16 20h4"/></svg>' +
-    '<div class="serif" style="font-size:25px">Gran Galoppo</div><div class="muted mono" style="font-size:11px;align-self:flex-end;margin-bottom:5px">v7</div></div><nav aria-label="Sezioni" style="display:flex;gap:5px">';
+    '<div class="serif" style="font-size:25px">Gran Galoppo</div><div class="muted mono" style="font-size:11px;align-self:flex-end;margin-bottom:5px">v8</div></div><nav aria-label="Sezioni" style="display:flex;gap:5px">';
   tabs.forEach(function (x) { var on = S.screen === x[0] || (S.screen === 'paddock' && x[0] === (S.book && S.book.mode === 'watch' ? 'betting' : 'races')); t += '<button class="tab' + (on ? ' on' : '') + '" data-act="tab" data-arg="' + x[0] + '"' + (inRace ? ' disabled' : '') + '>' + x[1] + '</button>'; });
   t += '</nav><div style="display:flex;align-items:center;gap:16px">' +
     '<div style="text-align:right"><div class="cap">SETTIMANA</div><div class="mono" style="font-size:18px">' + S.week + '</div></div>' +
@@ -1071,6 +1200,8 @@ function raceHTML() {
     '<div id="view" style="position:relative;width:1240px;height:520px;overflow:hidden;border-radius:12px;background:#6E9A5A">' +
     '<div class="abs" id="gl" style="inset:0"></div>' +
     '<div class="abs" id="radar" style="top:10px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:12px;background:rgba(15,42,33,.82)"></div>' +
+    '<div class="abs" id="comm" style="left:50%;bottom:58px;transform:translateX(-50%);max-width:920px;width:max-content;padding:8px 16px;border-radius:8px;background:rgba(0,0,0,.62);color:#fff;font-size:17px;line-height:1.35;text-align:center;opacity:0;transition:opacity .4s;pointer-events:none"></div>' +
+    '<button class="abs" id="commBtn" data-act="toggleComm" style="top:10px;right:10px;min-height:36px;padding:0 12px;border-radius:8px;border:1px solid rgba(255,255,255,.25);background:rgba(15,42,33,.82);font-size:13px">Telecronaca ' + (COMM.on ? 'sì' : 'no') + ' (T)</button>' +
     '<div class="abs" id="tvbug" style="left:14px;right:14px;bottom:12px;display:flex;align-items:stretch;gap:0;pointer-events:none;font-size:13px"></div>' +
     '<div class="abs" id="overlay" style="inset:0;pointer-events:none"></div>' +
     '<div class="abs" id="results" style="inset:0;display:none"></div></div>' +
@@ -1189,6 +1320,7 @@ function showResults() {
     '<button class="primary" data-act="closeRace" style="min-height:50px;border-radius:10px;font-size:16px">' + (race.spectator ? 'Torna alle scommesse' : 'Torna in scuderia') + '</button></div></div>';
   el.style.display = 'block';
   var btn = el.querySelector('button'); if (btn) btn.focus();
+  var cm = document.getElementById('comm'); if (cm) { cm.style.bottom = 'auto'; cm.style.top = '10px'; cm.style.zIndex = 5; cm.style.fontSize = '15px'; }
 }
 
 function start3D() {
@@ -1209,6 +1341,7 @@ function render() {
   else if (S.screen === 'careers') { if (!S.form) A.resetForm(); body = careersHTML(); }
   else if (S.screen === 'race') body = raceHTML();
   if (window.Race3D) Race3D.stop();
+  if (S.screen !== 'race') stopComm();
   app.innerHTML = topHTML() + body;
   if (S.screen === 'race') { start3D(); updateRace(); }
 }
@@ -1232,6 +1365,7 @@ document.addEventListener('keydown', function (e) {
   else if (k === '2') setPace(1);
   else if (k === '3') setPace(2);
   else if (k === 'c' || k === 'C') A.camera();
+  else if (k === 't' || k === 'T') A.toggleComm();
 });
 
 function fit() {
