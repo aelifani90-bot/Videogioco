@@ -48,10 +48,12 @@ td{padding:12px 6px;border-top:1px solid var(--line)}
 </head>
 <body>
 <div id="wrap"><div id="app"></div></div>
+<script type="importmap">{"imports":{"three":"./lib/three/three.module.min.js"}}</script>
+<script type="module" src="race3d.js"></script>
 <script>
 'use strict';
 var KEY = 'gran-galoppo-v1';
-var PX = 10, NOSE_X = 560, DT = 0.15;
+var DT = 0.1;
 var LEVELS = [
   { id: 1, name: 'Maiden Esordienti', track: 'Ippodromo del Mulino', dist: 1000, fee: 100, prize: 1500, rating: 36 },
   { id: 2, name: 'Handicap Provinciale', track: 'Ippodromo di Valverde', dist: 1200, fee: 300, prize: 4000, rating: 46 },
@@ -100,7 +102,6 @@ var HCOATS = {
   pezzato_nero: { body: '#ECE9E3', shade: '#B9B4AA', leg: '#E8E5DF', legDark: '#D9D5CD', mane: '#DCD8D0', patch: '#161415' },
   pezzato_sauro: { body: '#EFEAE2', shade: '#BDB3A6', leg: '#3A2A20', legDark: '#2A1E18', mane: '#8E3416', patch: '#9A4E22' }
 };
-var F = 5000, CAMH = 2.4, HZ = 150, CX = 620, LANE_M = 1.35, CAM_AHEAD = 40, CAM_LAT = 0;
 var SPR = {
   lista: { src: 'img/cut/sauro-lista.webp', ar: 0.658 },
   sauro: { src: 'img/cut/sauro.webp', ar: 0.613 },
@@ -130,82 +131,6 @@ function portrait(h, w, ht) {
   return '<div style="' + box + 'background:linear-gradient(#9FC0D6,#DCE8EE 52%,#577F49 52%,#6E9A5A 60%,#3F6B33);display:flex;align-items:flex-end;justify-content:center">' +
     '<img src="' + sp.src + '" alt="' + alt + '" style="height:' + (L.full ? '90%;margin-bottom:4%' : '100%') + ';max-width:100%;object-fit:contain;filter:' + L.f + ';display:block"></div>';
 }
-function prj(lat, hgt, d) { return [CX + F * (lat - CAM_LAT) / d, HZ + F * (CAMH - hgt) / d]; }
-function pt(a) { return a[0].toFixed(1) + ' ' + a[1].toFixed(1); }
-function quad(lat1, lat2, h1, h2, d1, d2) {
-  return 'M' + pt(prj(lat1, h1, d1)) + ' L' + pt(prj(lat2, h2, d1)) + ' L' + pt(prj(lat2, h2, d2)) + ' L' + pt(prj(lat1, h1, d2)) + ' Z ';
-}
-function side(lat, h1, h2, d1, d2) {
-  return 'M' + pt(prj(lat, h1, d1)) + ' L' + pt(prj(lat, h2, d1)) + ' L' + pt(prj(lat, h2, d2)) + ' L' + pt(prj(lat, h1, d2)) + ' Z ';
-}
-function staticBG() {
-  var s = '<defs><pattern id="crowd" width="9" height="8" patternUnits="userSpaceOnUse"><rect width="9" height="8" fill="#6E6A63"/><circle cx="2" cy="2" r="1.8" fill="#E3D2AE"/><circle cx="6.5" cy="5.5" r="1.8" fill="#9A3B32"/><circle cx="6" cy="1.5" r="1.3" fill="#3D5C8A"/></pattern></defs>';
-  s += '<path d="M0 150 L0 128 C120 112 230 118 340 126 C450 134 520 110 640 116 C760 122 860 136 980 124 C1080 114 1170 120 1240 130 L1240 150 Z" fill="#9DB79A"/>';
-  s += '<path d="M380 150 C400 132 430 130 450 140 C470 126 500 128 520 142 L700 142 C720 128 750 126 770 138 C800 124 840 130 860 150 Z" fill="#4F7A47"/>';
-  s += '<rect x="0" y="150" width="1240" height="370" fill="#6E9A5A"/>';
-  s += '<path d="' + quad(-5.6, 5.6, 0, 0, 28, 3000) + '" fill="#3E7B36"/>';
-  s += '<path d="' + side(-9, 0, 1.2, 28, 700) + '" fill="#E9E3D4"/>';
-  s += '<path d="' + side(-9, 1.2, 7, 28, 700) + '" fill="url(#crowd)"/>';
-  s += '<path d="' + side(-9, 7, 7.6, 28, 700) + '" fill="#2E363E"/>';
-  s += '<path d="' + side(-9.6, 7.6, 9, 28, 700) + '" fill="#3C4650"/>';
-  s += '<path d="' + side(9, 0, 3.2, 28, 900) + '" fill="#36673A"/>';
-  s += '<path d="' + side(10, 3.2, 5, 28, 900) + '" fill="#2F5A33"/>';
-  [-5.6, 5.6].forEach(function (lat) {
-    var a = prj(lat, 1, 28), b = prj(lat, 1, 3000);
-    s += '<line x1="' + a[0] + '" y1="' + a[1] + '" x2="' + b[0] + '" y2="' + b[1] + '" stroke="#FAFAF6" stroke-width="6"/>';
-  });
-  return s;
-}
-function sceneSVG(race, cam) {
-  var s = staticBG();
-  var bands = '';
-  var p0 = Math.floor((cam - 28) / 10) * 10;
-  for (var p = p0; p > cam - 700; p -= 10) {
-    if (((p / 10) % 2 + 2) % 2 === 0) bands += quad(-5.6, 5.6, 0, 0, Math.max(28, cam - p), cam - p + 10);
-  }
-  s += '<path d="' + bands + '" fill="rgba(255,255,255,0.07)"/>';
-  var near = '', far = '';
-  for (var q = Math.floor((cam - 28) / 5) * 5; q > cam - 450; q -= 5) {
-    var d = cam - q;
-    [-5.6, 5.6].forEach(function (lat) {
-      var a = prj(lat, 0, d), b = prj(lat, 1, d);
-      var seg = 'M' + pt(a) + ' L' + pt(b) + ' ';
-      if (d < 90) near += seg; else far += seg;
-    });
-  }
-  s += '<path d="' + near + '" stroke="#F4F4F0" stroke-width="4"/><path d="' + far + '" stroke="#F4F4F0" stroke-width="1.5"/>';
-  for (var m = Math.floor((cam - 30) / 100) * 100; m > cam - 700; m -= 100) {
-    if (m <= 0 || m >= race.dist) continue;
-    var dd = cam - m; if (dd > 320) continue;
-    var a1 = prj(-6.2, 0, dd), a2 = prj(-6.2, 2.4, dd), fs = Math.max(9, F * 0.45 / dd);
-    s += '<line x1="' + a1[0] + '" y1="' + a1[1] + '" x2="' + a2[0] + '" y2="' + a2[1] + '" stroke="#C8452F" stroke-width="' + Math.max(1.5, F * 0.09 / dd) + '"/>';
-    s += '<rect x="' + (a2[0] - fs * 1.4) + '" y="' + (a2[1] - fs * 1.2) + '" width="' + fs * 2.8 + '" height="' + fs * 1.3 + '" fill="#FAFAF6" stroke="#333" stroke-width="0.6"/>';
-    s += '<text x="' + a2[0] + '" y="' + (a2[1] - fs * 0.22) + '" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="' + fs + '" fill="#1C1C1C">' + (race.dist - m) + '</text>';
-  }
-  [[race.dist, true], [0, false]].forEach(function (L) {
-    var dl = cam - L[0];
-    if (dl < 28 || dl > 1500) return;
-    s += '<path d="' + quad(-5.6, 5.6, 0, 0, dl, dl + 0.6) + '" fill="#FAFAF6"/>';
-    if (L[1]) {
-      var b1 = prj(-6.4, 0, dl), b2 = prj(-6.4, 3.4, dl), r = F * 0.45 / dl;
-      s += '<line x1="' + b1[0] + '" y1="' + b1[1] + '" x2="' + b2[0] + '" y2="' + b2[1] + '" stroke="#FAFAF6" stroke-width="' + Math.max(2, F * 0.12 / dl) + '"/>';
-      s += '<circle cx="' + b2[0] + '" cy="' + b2[1] + '" r="' + r + '" fill="#C8452F" stroke="#FAFAF6" stroke-width="' + r * 0.18 + '"/>';
-    }
-  });
-  return s;
-}
-function jockeySVG(w, h, silk, cap) {
-  return '<svg class="abs" width="' + w + '" height="' + h + '" viewBox="0 0 100 100" preserveAspectRatio="none" style="left:0;top:0;overflow:visible" aria-hidden="true">' +
-    '<path d="M22 66 C22 44 34 34 50 34 C66 34 78 44 78 66 L78 84 L22 84 Z" fill="' + silk + '"/>' +
-    '<path d="M22 50 C34 44 66 44 78 50" stroke="#000" stroke-opacity="0.18" stroke-width="2.5" fill="none"/>' +
-    '<path d="M20 70 C18 80 22 92 28 96 L33 91 C29 85 28 77 29 70 Z M80 70 C82 80 78 92 72 96 L67 91 C71 85 72 77 71 70 Z" fill="' + silk + '"/>' +
-    '<circle cx="30" cy="95" r="3.5" fill="#F2F0E8"/><circle cx="70" cy="95" r="3.5" fill="#F2F0E8"/>' +
-    '<rect x="44" y="22" width="12" height="10" fill="#E3C2A0"/>' +
-    '<ellipse cx="50" cy="13" rx="13" ry="12" fill="' + cap + '"/><path d="M37 16 L63 16 L62 21 L38 21 Z" fill="#1A1A1A"/>' +
-    '<rect x="39.5" y="16.5" width="9" height="4" rx="1.5" fill="#9FC3D6"/><rect x="51.5" y="16.5" width="9" height="4" rx="1.5" fill="#9FC3D6"/>' +
-    '<path d="M42 6 C46 3 54 3 58 6" stroke="#fff" stroke-opacity="0.35" stroke-width="1.5" fill="none"/></svg>';
-}
-
 /* ---------- Carriera ---------- */
 function makeHorse(id, base) {
   return {
@@ -364,7 +289,8 @@ var A = {
   pace: function (p) { setPace(+p); },
   laneUp: function () { moveLane(-1); },
   laneDown: function () { moveLane(1); },
-  closeRace: function () { crowdStop(); S.screen = 'stable'; S.race = null; render(); }
+  camera: function () { if (window.Race3D) { var l = Race3D.cycleCamera(); var b = document.getElementById('camBtn'); if (b) b.innerHTML = l + '<small>camera, tasto C</small>'; } },
+  closeRace: function () { crowdStop(); if (window.Race3D) Race3D.stop(); S.screen = 'stable'; S.race = null; render(); }
 };
 
 function raceCheck() {
@@ -688,9 +614,7 @@ function raceHTML() {
   var paces = ['Risparmia', 'Galoppo', 'Sprint'].map(function (l, i) { return '<button class="pace" id="pace' + i + '" data-act="pace" data-arg="' + i + '">' + l + '<small>tasto ' + (i + 1) + '</small></button>'; }).join('');
   return '<div style="display:flex;flex-direction:column;gap:12px">' +
     '<div id="view" style="position:relative;width:1240px;height:520px;overflow:hidden;border-radius:12px;background:#6E9A5A">' +
-    '<div class="abs" style="left:0;top:0;width:1240px;height:150px;background:linear-gradient(#8DB4D2,#D9E7EE)"></div>' +
-    '<svg class="abs" id="scene" width="1240" height="520" viewBox="0 0 1240 520" style="left:0;top:0" aria-hidden="true"></svg>' +
-    '<div class="abs" id="layer" style="left:0;top:0;width:1240px;height:520px"></div>' +
+    '<div class="abs" id="gl" style="inset:0"></div>' +
     '<div class="abs" id="radar" style="top:10px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:12px;background:rgba(15,42,33,.82)"></div>' +
     '<div class="abs" id="overlay" style="inset:0;pointer-events:none"></div>' +
     '<div class="abs" id="results" style="inset:0;display:none"></div></div>' +
@@ -704,6 +628,7 @@ function raceHTML() {
     '<div id="mini" style="position:relative;height:18px;border-radius:9px;background:var(--bg)"></div>' +
     '<div style="display:flex;gap:8px">' + paces +
     '<button class="lanebtn" data-act="laneUp" aria-label="Corsia esterna"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button>' +
+    '<button class="pace" id="camBtn" data-act="camera" style="flex:0 0 112px">Laterale<small>camera, tasto C</small></button>' +
     '<button class="lanebtn" data-act="laneDown" aria-label="Corsia interna"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>' +
     '<div class="muted" id="hPower" style="font-size:12px"></div></div>' +
     '<div class="panel" id="live" style="padding:12px 14px;display:flex;flex-direction:column;gap:3px"></div></div></div>';
@@ -711,38 +636,7 @@ function raceHTML() {
 
 function updateRace() {
   var race = S.race; if (!race || S.screen !== 'race') return;
-  var me = race.racers[0], cam = me.pos + CAM_AHEAD;
-  CAM_LAT += ((me.lane - 2.5) * LANE_M * 0.7 - CAM_LAT) * 0.15;
-  document.getElementById('scene').innerHTML = sceneSVG(race, cam);
-  var racing = race.count <= 0, html = '', tu = '';
-  race.racers.slice().sort(function (a, b) { return a.pos - b.pos; }).forEach(function (r) {
-    var d = cam - r.pos;
-    if (d < 24) return;
-    var L = look(r), sp = L.s;
-    var hs = F * 1.75 / d, w = hs * sp.ar;
-    var lat = (r.lane - 2.5) * LANE_M;
-    var cx = CX + F * (lat - CAM_LAT) / d, ground = HZ + F * CAMH / d, bottom = HZ + F * (CAMH - 0.75) / d;
-    var ph = r.phase * Math.PI * 2;
-    var bob = racing && r.speed > 1 ? Math.sin(ph) * F * 0.06 / d : 0;
-    var rot = racing && r.speed > 1 ? Math.sin(ph + 1) * 1.3 : 0;
-    var top = bottom - hs + bob;
-    var op = Math.min(1, (d - 24) / 10);
-    html += '<div class="abs" style="left:0;top:0;opacity:' + op.toFixed(2) + '">';
-    var jw = Math.max(w * 0.9, hs * 0.55), jh = hs * 0.42;
-    html += '<div class="abs" style="left:' + (cx - jw / 2) + 'px;top:' + (top - hs * 0.09 + bob * 0.3) + 'px;width:' + jw + 'px;height:' + jh + 'px">' + jockeySVG(jw, jh, r.silk, r.cap) + '</div>';
-    var lw = Math.max(3, F * 0.15 / d), lift = racing && r.speed > 1 ? F * 0.4 / d : 0;
-    var lh1 = (ground - bottom) - Math.max(0, Math.sin(ph)) * lift, lh2 = (ground - bottom) - Math.max(0, -Math.sin(ph)) * lift;
-    [[-0.13, lh1], [0.11, lh2]].forEach(function (lg) {
-      html += '<div class="abs" style="left:' + (cx + w * lg[0] - lw / 2) + 'px;top:' + (bottom - hs * 0.12) + 'px;width:' + lw + 'px;height:' + (lg[1] + hs * 0.12) + 'px;background:' + L.leg + ';border-radius:' + (lw / 2) + 'px ' + (lw / 2) + 'px ' + (lw / 3) + 'px ' + (lw / 3) + 'px;box-shadow:inset ' + (-lw * 0.25) + 'px 0 0 rgba(0,0,0,.25)"></div>';
-      html += '<div class="abs" style="left:' + (cx + w * lg[0] - lw * 0.6) + 'px;top:' + (bottom + lg[1] - lw * 0.5) + 'px;width:' + (lw * 1.2) + 'px;height:' + (lw * 0.6) + 'px;background:#1A1A1A;border-radius:' + (lw * 0.2) + 'px"></div>';
-    });
-    html += '<img class="abs" src="' + sp.src + '" alt="" style="left:' + (cx - w / 2) + 'px;top:' + top + 'px;width:' + w + 'px;height:' + hs + 'px;filter:' + L.f + ';transform:rotate(' + rot.toFixed(2) + 'deg);transform-origin:50% 100%;-webkit-mask-image:linear-gradient(#000 80%,transparent 99%);mask-image:linear-gradient(#000 80%,transparent 99%)">';
-    var dw = F * 1.7 / d, dh = F * 0.95 / d;
-    html += '<div class="abs" style="left:' + (cx - dw / 2) + 'px;top:' + (ground - dh * 0.72) + 'px;width:' + dw + 'px;height:' + dh + 'px;border-radius:50%;background:radial-gradient(closest-side,rgba(118,104,76,' + (racing ? 0.92 : 0.45) + '),rgba(120,104,74,0))"></div>';
-    if (r.isPlayer) tu = '<div class="abs" style="left:' + (cx - 18) + 'px;top:' + (top - hs * 0.1 - 30) + 'px;display:flex;flex-direction:column;align-items:center;width:36px"><div style="padding:1px 6px;border-radius:4px;background:#D4AF37;color:#1C1606;font-size:11px;font-weight:600">TU</div><svg width="12" height="7" viewBox="0 0 12 7"><path d="M0 0h12L6 7z" fill="#D4AF37"/></svg></div>';
-    html += '</div>';
-  });
-  document.getElementById('layer').innerHTML = html + tu;
+  var me = race.racers[0];
   var rad = '<span style="font-size:12px;color:#B9C4B5;margin-right:4px">Davanti a te</span>';
   for (var ln = 0; ln < 6; ln++) {
     var nx = null;
@@ -780,8 +674,8 @@ function updateRace() {
     b.disabled = race.done || me.finished;
   }
   var pw = [];
-  if (race.t < race.boostUntil) pw.push('Zolletta attiva ' + Math.ceil((race.boostUntil - race.t) / 3) + ' s');
-  if (race.t < race.ironUntil) pw.push('Ferro d’oro attivo ' + Math.ceil((race.ironUntil - race.t) / 3) + ' s');
+  if (race.t < race.boostUntil) pw.push('Zolletta attiva ' + Math.ceil((race.boostUntil - race.t) / 2) + ' s');
+  if (race.t < race.ironUntil) pw.push('Ferro d’oro attivo ' + Math.ceil((race.ironUntil - race.t) / 2) + ' s');
   document.getElementById('hPower').textContent = pw.length ? pw.join('. ') : 'Prendi carote, zollette e ferri d’oro cambiando corsia con le frecce.';
   document.getElementById('live').innerHTML = order.map(function (r, i) {
     return '<div style="display:grid;grid-template-columns:22px 16px minmax(0,1fr);gap:8px;align-items:center;font-size:13px;padding:2px 4px;border-radius:4px;background:' + (r.isPlayer ? 'var(--line)' : 'transparent') + '">' +
@@ -806,6 +700,13 @@ function showResults() {
   var btn = el.querySelector('button'); if (btn) btn.focus();
 }
 
+function start3D() {
+  var el = document.getElementById('gl');
+  if (!el || S.screen !== 'race') return;
+  if (!window.Race3D) { setTimeout(start3D, 100); return; }
+  Race3D.start(el, function () { return S.race; });
+  var b = document.getElementById('camBtn'); if (b) b.innerHTML = Race3D.cameraLabel() + '<small>camera, tasto C</small>';
+}
 function render() {
   var body = '';
   if (S.screen === 'stable') body = stableHTML();
@@ -813,8 +714,9 @@ function render() {
   else if (S.screen === 'races') body = racesHTML();
   else if (S.screen === 'standings') body = standingsHTML();
   else if (S.screen === 'race') body = raceHTML();
+  if (window.Race3D) Race3D.stop();
   app.innerHTML = topHTML() + body;
-  if (S.screen === 'race') updateRace();
+  if (S.screen === 'race') { start3D(); updateRace(); }
 }
 
 app.addEventListener('click', function (e) {
@@ -831,6 +733,7 @@ document.addEventListener('keydown', function (e) {
   else if (k === '1') setPace(0);
   else if (k === '2') setPace(1);
   else if (k === '3') setPace(2);
+  else if (k === 'c' || k === 'C') A.camera();
 });
 
 function fit() {
