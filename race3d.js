@@ -331,11 +331,11 @@ function start(container, getRace) {
     if (!race) return;
     st.world = buildWorld(scene, race);
     st.horses = race.racers.map((r) => { const h = makeHorse(r); scene.add(h.holder); return h; });
+    const hasPlayer = race.racers[0] && race.racers[0].isPlayer;
     const marker = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.45, 4), new THREE.MeshStandardMaterial({ color: 0xd4af37, emissive: 0x6b5410, metalness: 0.4, roughness: 0.3 }));
     marker.rotation.x = Math.PI;
     marker.position.set(0.3, 2.35, 0);
-    st.horses[0].holder.add(marker);
-    st.marker = marker;
+    if (hasPlayer) { st.horses[0].holder.add(marker); st.marker = marker; }
     st.items = race.items.map((it) => {
       const m = itemMesh(it.kind);
       m.position.set(it.m, 1.1, (it.lane - 2.5) * LANE_W);
@@ -367,7 +367,9 @@ function start(container, getRace) {
         if (m.visible) { m.rotation.y += dt * 2; m.position.y = 1.1 + Math.sin(now / 300 + i) * 0.12; }
       });
       if (st.marker) { st.marker.rotation.y += dt * 2; st.marker.position.y = 2.35 + Math.sin(now / 250) * 0.1; }
-      const me = st.horses[0];
+      let fi = 0;
+      if (!(race.racers[0] && race.racers[0].isPlayer)) race.racers.forEach((r, i) => { if (r.pos > race.racers[fi].pos) fi = i; });
+      const me = st.horses[fi];
       const target = new THREE.Vector3(), look = new THREE.Vector3();
       if (st.mode === 'dietro') { target.set(-8, 3.2, me.z * 0.8); look.set(8, 1.3, me.z * 0.7); }
       else if (st.mode === 'fronte') { target.set(12, 2.1, me.z * 0.5); look.set(-4, 1.5, me.z * 0.7); }
