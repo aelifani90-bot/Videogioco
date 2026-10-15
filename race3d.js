@@ -288,7 +288,7 @@ function makeHorse(r) {
   mesh.updateMorphTargets();
   const holder = new THREE.Group();
   mesh.scale.setScalar(HORSE_SCALE);
-  mesh.rotation.y = t.headPlusZ ? Math.PI / 2 : -Math.PI / 2;
+  mesh.rotation.y = t.headPlusZ ? -Math.PI / 2 : Math.PI / 2;
   mesh.position.y = -t.box.min.y * HORSE_SCALE;
   holder.add(mesh);
   const jockey = makeJockey(r.silk, r.cap, r.num);
@@ -333,7 +333,7 @@ function start(container, getRace) {
     st.horses = race.racers.map((r) => { const h = makeHorse(r); scene.add(h.holder); return h; });
     const marker = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.45, 4), new THREE.MeshStandardMaterial({ color: 0xd4af37, emissive: 0x6b5410, metalness: 0.4, roughness: 0.3 }));
     marker.rotation.x = Math.PI;
-    marker.position.set(0.3, 2.75, 0);
+    marker.position.set(0.3, 2.35, 0);
     st.horses[0].holder.add(marker);
     st.marker = marker;
     st.items = race.items.map((it) => {
@@ -366,7 +366,7 @@ function start(container, getRace) {
         m.visible = !it.taken;
         if (m.visible) { m.rotation.y += dt * 2; m.position.y = 1.1 + Math.sin(now / 300 + i) * 0.12; }
       });
-      if (st.marker) { st.marker.rotation.y += dt * 2; st.marker.position.y = 2.75 + Math.sin(now / 250) * 0.1; }
+      if (st.marker) { st.marker.rotation.y += dt * 2; st.marker.position.y = 2.35 + Math.sin(now / 250) * 0.1; }
       const me = st.horses[0];
       const target = new THREE.Vector3(), look = new THREE.Vector3();
       if (st.mode === 'dietro') { target.set(-8, 3.2, me.z * 0.8); look.set(8, 1.3, me.z * 0.7); }
@@ -402,8 +402,8 @@ function stop() {
   lastMode = st.mode || lastMode;
 }
 
-let lastMode = 'tv';
-const MODES = ['tv', 'dietro', 'fronte'];
+let lastMode = 'dietro';
+const MODES = ['dietro', 'tv', 'fronte'];
 const LABELS = { tv: 'Laterale', dietro: 'Da dietro', fronte: 'Frontale' };
 function cycleCamera() {
   const cur = state && state.mode ? state.mode : lastMode;
@@ -412,10 +412,11 @@ function cycleCamera() {
   if (state) state.mode = next;
   return LABELS[next];
 }
+function cameraMode() { return state && state.mode ? state.mode : lastMode; }
 function cameraLabel() { return LABELS[state && state.mode ? state.mode : lastMode]; }
 const _start = start;
 window.Race3D = {
   start: (c, g) => { _start(c, g); if (state) state.mode = lastMode; },
-  stop, cycleCamera, cameraLabel, preload: loadHorse
+  stop, cycleCamera, cameraLabel, cameraMode, preload: loadHorse
 };
 loadHorse().catch(() => {});

@@ -3,7 +3,7 @@
 Gioco manageriale di corse di cavalli al galoppo, con la gara in 3D. Si gioca nel browser.
 
 Gestisci la scuderia, allena i cavalli, compra al mercato e corri cinque livelli di gare.
-In gara usa i tasti 1, 2 e 3 per il ritmo, le frecce su e giù per cambiare corsia e il tasto C per cambiare telecamera.
+In gara usa i tasti 1, 2 e 3 per il ritmo, le frecce sinistra e destra per cambiare corsia e il tasto C per cambiare telecamera.
 
 Il gioco usa moduli JavaScript, quindi va aperto da un server web (per esempio GitHub Pages) e non con doppio clic sul file.
 Per provarlo sul tuo computer lancia `python3 -m http.server` nella cartella e apri http://localhost:8000
