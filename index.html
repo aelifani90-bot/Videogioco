@@ -49,7 +49,7 @@ td{padding:12px 6px;border-top:1px solid var(--line)}
 <body>
 <div id="wrap"><div id="app"></div></div>
 <script type="importmap">{"imports":{"three":"./lib/three/three.module.min.js"}}</script>
-<script type="module" src="race3d.js?v=5"></script>
+<script type="module" src="race3d.js?v=6"></script>
 <script>
 'use strict';
 var KEY = 'gran-galoppo-v1';
@@ -389,10 +389,31 @@ var A = {
     save(); sfx('click'); render();
   },
   deleteSlot: function (i) {
-    i = +i; if (i === S.slot) return;
+    i = +i;
     var d = readSlots(); if (!d.slots[i]) return;
-    if (!confirm('Vuoi eliminare per sempre la carriera nello slot ' + (i + 1) + '?')) return;
-    d.slots[i] = null; writeSlots(d); S.form.slot = firstFreeSlot(); sfx('click'); render();
+    var nm = (d.slots[i].data && d.slots[i].data.stableName) || 'La tua scuderia';
+    if (!confirm('Vuoi cancellare per sempre la carriera "' + nm + '" nello slot ' + (i + 1) + '? Non potrai recuperarla.')) return;
+    if (i !== S.slot) {
+      d.slots[i] = null; writeSlots(d);
+      S.msg = 'Carriera "' + nm + '" cancellata.';
+      if (S.form) S.form.slot = firstFreeSlot();
+      sfx('click'); render(); return;
+    }
+    if (S.book) S.book = null;
+    d.slots[i] = null;
+    var next = -1, when = 0;
+    d.slots.forEach(function (x, k) { if (x && x.savedAt >= when) { when = x.savedAt; next = k; } });
+    writeSlots(d);
+    if (next >= 0) {
+      loadData(d.slots[next].data, next);
+      S.msg = 'Carriera "' + nm + '" cancellata. Ho aperto ' + S.stableName + ' dallo slot ' + (next + 1) + '.';
+    } else {
+      loadData(freshCareer(), i);
+      S.msg = 'Carriera "' + nm + '" cancellata. Non c’erano altre carriere, quindi ne ho aperta una nuova in difficoltà normale. Puoi crearne una come vuoi tu qui a destra.';
+    }
+    save();
+    S.screen = 'careers'; A.resetForm();
+    sfx('click'); render();
   },
   saveNow: function () { save(); S.msg = 'Partita salvata.'; sfx('click'); render(); },
   exportSave: function () {
@@ -786,7 +807,7 @@ function topHTML() {
   var inRace = S.screen === 'race';
   var t = '<div class="panel top" id="top"><div style="display:flex;align-items:center;gap:12px">' +
     '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 20V11a6 6 0 0 1 12 0v9"/><path d="M4 20h4M16 20h4"/></svg>' +
-    '<div class="serif" style="font-size:25px">Gran Galoppo</div><div class="muted mono" style="font-size:11px;align-self:flex-end;margin-bottom:5px">v5</div></div><nav aria-label="Sezioni" style="display:flex;gap:5px">';
+    '<div class="serif" style="font-size:25px">Gran Galoppo</div><div class="muted mono" style="font-size:11px;align-self:flex-end;margin-bottom:5px">v6</div></div><nav aria-label="Sezioni" style="display:flex;gap:5px">';
   tabs.forEach(function (x) { var on = S.screen === x[0] || (S.screen === 'paddock' && x[0] === (S.book && S.book.mode === 'watch' ? 'betting' : 'races')); t += '<button class="tab' + (on ? ' on' : '') + '" data-act="tab" data-arg="' + x[0] + '"' + (inRace ? ' disabled' : '') + '>' + x[1] + '</button>'; });
   t += '</nav><div style="display:flex;align-items:center;gap:16px">' +
     '<div style="text-align:right"><div class="cap">SETTIMANA</div><div class="mono" style="font-size:18px">' + S.week + '</div></div>' +
@@ -934,8 +955,8 @@ function careersHTML() {
         '<div style="flex:1;min-width:0"><div class="cap">SLOT ' + (i + 1) + (cur ? ', IN USO' : '') + '</div><div class="serif" style="font-size:22px">' + esc(x.stableName || 'La tua scuderia') + '</div>' +
         '<div class="muted" style="font-size:13px">' + (DIFFS[x.difficulty] || DIFFS.normale).label + ', settimana ' + x.week + ', cassa ' + euro(x.money) + ', ' + ((x.career && x.career.wins) || 0) + ' vittorie</div>' +
         '<div class="muted" style="font-size:12px">Salvata il ' + when + '</div></div>' +
-        (cur ? '<button class="primary" data-act="saveNow" style="min-height:44px;padding:0 16px">Salva ora</button>' :
-          '<button class="primary" data-act="loadSlot" data-arg="' + i + '" style="min-height:44px;padding:0 16px">Carica</button><button data-act="deleteSlot" data-arg="' + i + '" style="min-height:44px;padding:0 14px;border-radius:8px;border:1px solid #6B3A2F;background:transparent;color:#F0B4A6">Elimina</button>') +
+        (cur ? '<button class="primary" data-act="saveNow" style="min-height:44px;padding:0 16px">Salva ora</button><button data-act="deleteSlot" data-arg="' + i + '" style="min-height:44px;padding:0 14px;border-radius:8px;border:1px solid #6B3A2F;background:transparent;color:#F0B4A6">Cancella</button>' :
+          '<button class="primary" data-act="loadSlot" data-arg="' + i + '" style="min-height:44px;padding:0 16px">Carica</button><button data-act="deleteSlot" data-arg="' + i + '" style="min-height:44px;padding:0 14px;border-radius:8px;border:1px solid #6B3A2F;background:transparent;color:#F0B4A6">Cancella</button>') +
         '</div>';
     } else {
       slots += '<div class="panel" style="padding:16px;display:flex;gap:14px;align-items:center;border-style:dashed"><div style="flex:1"><div class="cap">SLOT ' + (i + 1) + '</div><div class="muted" style="font-size:15px">Vuoto</div></div></div>';
