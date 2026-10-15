@@ -49,7 +49,7 @@ td{padding:12px 6px;border-top:1px solid var(--line)}
 <body>
 <div id="wrap"><div id="app"></div></div>
 <script type="importmap">{"imports":{"three":"./lib/three/three.module.min.js"}}</script>
-<script type="module" src="race3d.js?v=6"></script>
+<script type="module" src="race3d.js?v=7"></script>
 <script>
 'use strict';
 var KEY = 'gran-galoppo-v1';
@@ -688,7 +688,7 @@ function startRace() {
       items.push({ m: m, lane: ri(0, 5), kind: roll < 0.45 ? 'carota' : (roll < 0.8 ? 'zolletta' : 'ferro'), taken: false });
     }
   }
-  S.race = { lvl: lv.id, dist: lv.dist, t: 0, count: 3.6, racers: racers, items: items, boostUntil: 0, ironUntil: 0, done: false, results: null, toast: '', toastUntil: 0, playerDone: false, playerDoneT: 0, spectator: !run };
+  S.race = { lvl: lv.id, dist: lv.dist, t: 0, count: 3.6, racers: racers, items: items, boostUntil: 0, ironUntil: 0, done: false, results: null, toast: '', toastUntil: 0, playerDone: false, playerDoneT: 0, spectator: !run, rate: DT / 0.05 };
   S.screen = 'race'; lastCount = 4;
   save(); sfx('call'); render();
 }
@@ -700,8 +700,8 @@ function raceFocus(race) {
   return best;
 }
 function steer(d) {
-  var mode = window.Race3D && Race3D.cameraMode ? Race3D.cameraMode() : 'dietro';
-  moveLane(mode === 'fronte' ? -d : d);
+  var sign = window.Race3D && Race3D.laneSign ? Race3D.laneSign() : 1;
+  moveLane(sign * d);
 }
 function setPace(p) { var r = S.race; if (!r || r.done || r.spectator || r.racers[0].finished) return; r.racers[0].pace = p; updateRace(); }
 function moveLane(d) { var r = S.race; if (!r || r.done || r.spectator || r.racers[0].finished) return; r.racers[0].lane = clamp(r.racers[0].lane + d, 0, 5); updateRace(); }
@@ -717,6 +717,7 @@ function tick() {
     updateRace(); return;
   }
   var me = racePlayer(race), focus = raceFocus(race);
+  race.tickAt = performance.now();
   var steps = race.playerDone ? 3 : 1;
   for (var n = 0; n < steps; n++) {
     race.t += DT;
@@ -807,7 +808,7 @@ function topHTML() {
   var inRace = S.screen === 'race';
   var t = '<div class="panel top" id="top"><div style="display:flex;align-items:center;gap:12px">' +
     '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 20V11a6 6 0 0 1 12 0v9"/><path d="M4 20h4M16 20h4"/></svg>' +
-    '<div class="serif" style="font-size:25px">Gran Galoppo</div><div class="muted mono" style="font-size:11px;align-self:flex-end;margin-bottom:5px">v6</div></div><nav aria-label="Sezioni" style="display:flex;gap:5px">';
+    '<div class="serif" style="font-size:25px">Gran Galoppo</div><div class="muted mono" style="font-size:11px;align-self:flex-end;margin-bottom:5px">v7</div></div><nav aria-label="Sezioni" style="display:flex;gap:5px">';
   tabs.forEach(function (x) { var on = S.screen === x[0] || (S.screen === 'paddock' && x[0] === (S.book && S.book.mode === 'watch' ? 'betting' : 'races')); t += '<button class="tab' + (on ? ' on' : '') + '" data-act="tab" data-arg="' + x[0] + '"' + (inRace ? ' disabled' : '') + '>' + x[1] + '</button>'; });
   t += '</nav><div style="display:flex;align-items:center;gap:16px">' +
     '<div style="text-align:right"><div class="cap">SETTIMANA</div><div class="mono" style="font-size:18px">' + S.week + '</div></div>' +
@@ -1070,6 +1071,7 @@ function raceHTML() {
     '<div id="view" style="position:relative;width:1240px;height:520px;overflow:hidden;border-radius:12px;background:#6E9A5A">' +
     '<div class="abs" id="gl" style="inset:0"></div>' +
     '<div class="abs" id="radar" style="top:10px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:12px;background:rgba(15,42,33,.82)"></div>' +
+    '<div class="abs" id="tvbug" style="left:14px;right:14px;bottom:12px;display:flex;align-items:stretch;gap:0;pointer-events:none;font-size:13px"></div>' +
     '<div class="abs" id="overlay" style="inset:0;pointer-events:none"></div>' +
     '<div class="abs" id="results" style="inset:0;display:none"></div></div>' +
     '<div style="height:168px;display:grid;grid-template-columns:220px minmax(0,1fr) 300px;gap:14px">' +
@@ -1082,7 +1084,7 @@ function raceHTML() {
     '<div id="mini" style="position:relative;height:18px;border-radius:9px;background:var(--bg)"></div>' +
     '<div style="display:flex;gap:8px">' + paces +
     '<button class="lanebtn" data-act="laneLeft" aria-label="Sposta a sinistra"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>' +
-    '<button class="pace" id="camBtn" data-act="camera" style="flex:0 0 112px">Laterale<small>camera, tasto C</small></button>' +
+    '<button class="pace" id="camBtn" data-act="camera" style="flex:0 0 112px">Regia TV<small>camera, tasto C</small></button>' +
     '<button class="lanebtn" data-act="laneRight" aria-label="Sposta a destra"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></div>' +
     '<div class="muted" id="hPower" style="font-size:12px"></div></div>' +
     '<div class="panel" id="live" style="padding:12px 14px;display:flex;flex-direction:column;gap:3px"></div></div></div>';
@@ -1116,6 +1118,15 @@ function updateRace() {
   document.getElementById('overlay').innerHTML = ov;
 
   var order = orderOf(race);
+  var left = Math.max(0, Math.ceil(race.dist - order[0].pos));
+  var tick = order.slice(0, 6).map(function (r, i) {
+    var hi = r.isPlayer || r.backed;
+    return '<span style="display:inline-flex;align-items:center;gap:5px;padding:0 9px;border-left:1px solid rgba(255,255,255,.12);' + (hi ? 'color:#F0CF62;font-weight:600' : '') + '"><b class="mono" style="color:#D4AF37">' + (i + 1) + '</b><span style="width:11px;height:11px;border-radius:2px;background:' + r.silk + ';border:2px solid ' + r.cap + '"></span>' + r.num + ' ' + esc(r.name.split(' ')[0]) + '</span>';
+  }).join('');
+  document.getElementById('tvbug').innerHTML = race.done ? '' :
+    '<div style="display:flex;align-items:center;gap:8px;padding:7px 12px;background:#B3261E;color:#fff;font-weight:700;letter-spacing:.06em;border-radius:6px 0 0 6px"><span style="width:8px;height:8px;border-radius:50%;background:#fff"></span>LIVE</div>' +
+    '<div style="display:flex;align-items:center;gap:10px;padding:7px 12px;background:rgba(15,42,33,.92);border-right:1px solid rgba(255,255,255,.12)"><span class="serif" style="font-size:15px">' + LEVELS[race.lvl - 1].name + '</span><span class="mono gold">' + (race.count > 0 ? race.dist + ' m' : (left > 0 ? left + ' m all’arrivo' : 'ARRIVO')) + '</span></div>' +
+    '<div style="flex:1;display:flex;align-items:center;overflow:hidden;white-space:nowrap;padding:7px 4px;background:rgba(15,42,33,.82);border-radius:0 6px 6px 0">' + tick + '</div>';
   if (me) {
     document.getElementById('hCap').textContent = 'POSIZIONE';
     document.getElementById('hPlace').textContent = (order.indexOf(me) + 1) + '°';
